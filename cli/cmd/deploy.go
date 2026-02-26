@@ -22,7 +22,7 @@ var (
 var deployCmd = &cobra.Command{
 	Use:   "deploy [flags] [name]",
 	Short: "Deploy a LABYRINTH environment",
-	Long: `Deploy a test or production LABYRINTH honeypot environment.
+	Long: `Deploy a test or production LABYRINTH portal trap environment.
 
 Test mode:
   labyrinth deploy -t [name]          Deploy test environment
@@ -102,7 +102,7 @@ func deployTest(envName string) {
 
 	comp := docker.NewCompose(composeFile, composeProject)
 
-	info("Building honeypot container image...")
+	info("Building portal trap container image...")
 	if err := comp.Build(); err != nil {
 		errMsg(fmt.Sprintf("Build failed: %v", err))
 		os.Exit(1)
@@ -136,12 +136,12 @@ func deployTest(envName string) {
 
 	fmt.Printf("  %s┌─────────────────────────────────────────────────┐%s\n", green, reset)
 	fmt.Printf("  %s│%s  Environment:      %s%-21s%s%s│%s\n", green, reset, bold, envName, reset, green, reset)
-	fmt.Printf("  %s│%s  SSH Honeypot:     %slocalhost:2222%s               %s│%s\n", green, reset, bold, reset, green, reset)
-	fmt.Printf("  %s│%s  HTTP Honeypot:    %slocalhost:8080%s               %s│%s\n", green, reset, bold, reset, green, reset)
+	fmt.Printf("  %s│%s  SSH Portal Trap:  %slocalhost:2222%s               %s│%s\n", green, reset, bold, reset, green, reset)
+	fmt.Printf("  %s│%s  HTTP Portal Trap: %slocalhost:8080%s               %s│%s\n", green, reset, bold, reset, green, reset)
 	fmt.Printf("  %s│%s  Dashboard:        %shttp://localhost:9000%s         %s│%s\n", green, reset, bold, reset, green, reset)
 	fmt.Printf("  %s└─────────────────────────────────────────────────┘%s\n", green, reset)
 	fmt.Println()
-	fmt.Println("  Point your offensive AI agent at the honeypot.")
+	fmt.Println("  Point your offensive AI agent at the portal trap.")
 	fmt.Println("  Watch captures in real time at the dashboard.")
 	fmt.Println()
 	dim := "\033[2m"
@@ -210,7 +210,7 @@ func deployProdEdge(envName string) {
 	reset := "\033[0m"
 	fmt.Printf("  %sWhat this will include (Option C):%s\n", dim, reset)
 	fmt.Printf("  %s  - Terraform / Fly.io deployment config%s\n", dim, reset)
-	fmt.Printf("  %s  - Globally distributed honeypot nodes%s\n", dim, reset)
+	fmt.Printf("  %s  - Globally distributed portal trap nodes%s\n", dim, reset)
 	fmt.Printf("  %s  - Centralized log aggregation%s\n", dim, reset)
 	fmt.Printf("  %s  - Edge-optimized container images%s\n", dim, reset)
 	fmt.Printf("  %s  - Anycast routing for realistic exposure%s\n", dim, reset)
@@ -233,7 +233,7 @@ func showProdTypes() {
 	fmt.Printf("             %slabyrinth deploy -p <name> --k8s%s\n", dim, reset)
 	fmt.Println()
 	fmt.Printf("  %s--edge%s      Edge deployment %s(not yet implemented)%s\n", bold, reset, yellow, reset)
-	fmt.Println("             Globally distributed honeypots via Fly.io or similar.")
+	fmt.Println("             Globally distributed portal traps via Fly.io or similar.")
 	fmt.Printf("             %slabyrinth deploy -p <name> --edge%s\n", dim, reset)
 	fmt.Println()
 }

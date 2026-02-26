@@ -83,7 +83,7 @@ func defaultLayerInfo() *layerInfo {
 	return &layerInfo{
 		layers: [5]layerDetail{
 			{name: "L0: FOUNDATION", status: "active", detail: "Encryption: AES-256-GCM | Network isolation | Retention policy"},
-			{name: "L1: THRESHOLD", status: "active", detail: "SSH honeypot (:2222) | HTTP honeypot (:8080) | Session logging"},
+			{name: "L1: THRESHOLD", status: "active", detail: "SSH portal trap (:2222) | HTTP portal trap (:8080) | Session logging"},
 			{name: "L2: MIRAGE", status: "standby", detail: "Adaptive filesystem | Contradiction density: medium"},
 			{name: "L3: BLINDFOLD", status: "standby", detail: "Activation: on_escalation | Method: bashrc_payload"},
 			{name: "L4: INTERCEPT", status: "standby", detail: "Mode: auto | Default swap: passive | Prompt logging: on"},

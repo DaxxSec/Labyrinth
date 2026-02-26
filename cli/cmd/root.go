@@ -12,8 +12,8 @@ var installFlag bool
 
 var rootCmd = &cobra.Command{
 	Use:   "labyrinth",
-	Short: "LABYRINTH — Adversarial Cognitive Honeypot Architecture",
-	Long:  "Deploy, manage, and monitor LABYRINTH honeypot environments.",
+	Short: "LABYRINTH — Adversarial Cognitive Portal Trap Architecture",
+	Long:  "Deploy, manage, and monitor LABYRINTH portal trap environments.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Print banner for all commands except TUI (it takes over the screen)
 		if cmd.Name() != "tui" {

@@ -1,6 +1,6 @@
 # <img src="docs/assets/labyrinth-icon.svg" width="32" height="32" alt="icon"> Project LABYRINTH
 
-### Adversarial Cognitive Honeypot Architecture
+### Adversarial Cognitive Portal Trap Architecture
 
 <p align="center">
   <img src="docs/assets/labyrinth-banner.svg" alt="Project LABYRINTH" width="800">
@@ -36,27 +36,48 @@ Autonomous AI agents are being deployed for offensive cyber operations — autom
 
 Deploy a complete test environment in one command. Run your offensive AI agents against it and watch them get trapped in real time.
 
+### Option A: Go CLI (recommended)
+
 ```bash
-# Clone & deploy
 git clone https://github.com/ItzDaxxy/labyrinth.git
-cd labyrinth
-./deploy.sh --test-mode
+cd labyrinth/cli
+
+# Build the binary
+go build -o labyrinth .
+
+# Deploy a test environment
+./labyrinth deploy -t
+
+# Launch the TUI monitoring dashboard
+./labyrinth tui
+
+# Install globally (optional)
+./labyrinth --install
 ```
 
-That's it. Your honeypot is live:
+### Option B: Shell script
+
+```bash
+git clone https://github.com/ItzDaxxy/labyrinth.git
+cd labyrinth
+./deploy.sh -t
+```
+
+That's it. Your portal trap is live:
 
 | Service | Address | Purpose |
 |---------|---------|---------|
-| SSH Honeypot | `localhost:2222` | Point offensive agents here |
-| HTTP Honeypot | `localhost:8080` | Web-based attack surface |
-| Dashboard | `http://localhost:9000` | Real-time capture viewer |
+| SSH Portal Trap | `localhost:2222` | Point offensive agents here |
+| HTTP Portal Trap | `localhost:8080` | Web-based attack surface |
+| Dashboard | `http://localhost:9000` | Real-time web dashboard |
+| TUI Dashboard | `labyrinth tui` | Terminal monitoring dashboard |
 
-Point your agent at the honeypot and watch the dashboard.
+Point your agent at the portal trap and watch the dashboard.
 
 ### What happens when an agent connects:
 
 ```
-🎯 Agent connects to honeypot service
+🎯 Agent connects to portal trap service
    └─→ Container spawned (Layer 1 — THRESHOLD)
        └─→ Agent explores contradictory environment (Layer 2 — MINOTAUR)
            └─→ Terminal encoding corrupted (Layer 3 — BLINDFOLD)
@@ -80,7 +101,7 @@ LABYRINTH implements a **reverse kill chain** — the attacker's progression thr
 │   ┌──────────────────────────────────────────────────┐   │
 │   │                                                  │   │
 │   │   LAYER 1 — THRESHOLD ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   │   │
-│   │   Honeypot → Dynamic container isolation         │   │
+│   │   Portal trap → Dynamic container isolation       │   │
 │   │                                                  │   │
 │   │   ┌──────────────────────────────────────────┐   │   │
 │   │   │                                          │   │   │
@@ -127,7 +148,7 @@ LABYRINTH implements a **reverse kill chain** — the attacker's progression thr
 <td>🚪 L1</td>
 <td><code>THRESHOLD</code></td>
 <td>CONTAIN</td>
-<td>Internet-facing honeypot services route connections into dynamically-spawned isolated containers. Agent thinks it compromised a host. It didn't.</td>
+<td>Internet-facing portal trap services route connections into dynamically-spawned isolated containers. Agent thinks it compromised a host. It didn't.</td>
 </tr>
 <tr>
 <td>🌀 L2</td>
@@ -159,7 +180,7 @@ LABYRINTH implements a **reverse kill chain** — the attacker's progression thr
     │            │            │            └─ Can't parse output
     │            │            └─ Can't trust environment
     │            └─ Can't reach real infrastructure
-    └─ Honeypot can't become a liability
+    └─ Portal trap can't become a liability
 
   ▸ Depth of penetration = Depth of compromise
 ```
@@ -168,7 +189,7 @@ LABYRINTH implements a **reverse kill chain** — the attacker's progression thr
 
 ## 📊 Captured Output
 
-When an agent hits the honeypot, LABYRINTH captures and structures everything. The test-mode dashboard shows this in real time; raw data exports as structured JSON for SIEM/SOAR integration.
+When an agent hits the portal trap, LABYRINTH captures and structures everything. The test-mode dashboard shows this in real time; raw data exports as structured JSON for SIEM/SOAR integration.
 
 ### Session Report Example
 
@@ -257,28 +278,52 @@ All session data exports as structured JSON for your pipeline:
 
 ```
 labyrinth/
-├── docs/
-│   ├── assets/                    # SVG banner & icon
-│   ├── ARCHITECTURE.md            # Technical reference
-│   ├── THREAT_MODEL.md            # AI agent threat modeling
-│   └── Project_LABYRINTH_Architecture_v0.2.pdf
+├── cli/                             # Go CLI binary + TUI dashboard
+│   ├── cmd/                         #   Cobra commands (deploy, status, teardown, list, tui)
+│   ├── internal/
+│   │   ├── tui/                     #   Bubbletea TUI (5 tabs: Overview, Sessions, Layers, Analysis, Logs)
+│   │   ├── registry/                #   Environment CRUD (backwards-compat with deploy.sh)
+│   │   ├── docker/                  #   Docker Compose integration & preflight checks
+│   │   ├── api/                     #   Dashboard HTTP client
+│   │   ├── forensics/               #   Direct JSONL file reader (fallback)
+│   │   └── config/                  #   labyrinth.yaml parser
+│   └── test/                        #   Integration tests
 ├── src/
-│   ├── orchestrator/              # Container lifecycle & session mgmt
-│   ├── layer0_foundation/         # Network isolation, encryption, retention
-│   ├── layer1_portal/             # Honeypot services & container spin-up
-│   ├── layer2_maze/               # Contradiction seeding & adaptive envs
-│   ├── layer3_blindfold/          # Encoding corruption & recovery traps
-│   └── layer4_puppeteer/          # MITM proxy & prompt interception
-├── dashboard/                     # Real-time test mode dashboard
+│   ├── orchestrator/                # Container lifecycle & session mgmt
+│   ├── layer0_foundation/           # Network isolation, encryption, retention
+│   ├── layer1_portal/               # Portal trap services & container spin-up
+│   ├── layer2_maze/                 # Contradiction seeding & adaptive envs
+│   ├── layer3_blindfold/            # Encoding corruption & recovery traps
+│   └── layer4_puppeteer/            # MITM proxy & prompt interception
+├── docker/                          # Dockerfiles for each service
+├── dashboard/                       # Real-time web dashboard
 ├── configs/
-│   └── labyrinth.example.yaml     # Deployment config template
-├── scripts/                       # Utility scripts
-├── tests/                         # Test suite
-├── deploy.sh                      # One-click deployment
-├── Dockerfile                     # Honeypot container image
-├── docker-compose.yml             # Full stack orchestration
+│   └── labyrinth.example.yaml       # Deployment config template
+├── docs/                            # Architecture docs & assets
+├── scripts/                         # Utility scripts
+├── tests/                           # Test suite
+├── deploy.sh                        # Shell deployment (legacy)
+├── docker-compose.yml               # Full stack orchestration
 ├── LICENSE
 └── README.md
+```
+
+---
+
+## 💻 CLI Reference
+
+```
+labyrinth deploy -t [name]              # Test env (default: labyrinth-test)
+labyrinth deploy -p <name> --docker     # Production Docker
+labyrinth deploy -p <name> --k8s        # Production K8s (coming soon)
+labyrinth deploy -p <name> --edge       # Production Edge (coming soon)
+labyrinth deploy -p                     # List production types
+labyrinth status [name]                 # All envs or specific
+labyrinth teardown <name>               # Tear down specific env
+labyrinth teardown --all                # Tear down everything
+labyrinth list                          # All tracked environments
+labyrinth tui                           # TUI monitoring dashboard
+labyrinth --install                     # Install to ~/.local/bin
 ```
 
 ---
@@ -290,15 +335,18 @@ labyrinth/
 - [x] Architecture specification (v0.2)
 - [x] Layer 0 operational security framework
 - [x] Repository scaffold & documentation
+- [x] One-click test deployment (`deploy.sh` + `labyrinth deploy -t`)
+- [x] Go CLI binary with full environment lifecycle management
+- [x] TUI monitoring dashboard (Bubbletea — 5 tabs)
+- [x] Real-time web capture dashboard (Flask, port 9000)
+- [x] Environment registry (backwards-compatible JSON)
+- [x] JSONL forensic event capture & export
 - [ ] Layer 1 container orchestration prototype
 - [ ] Layer 2 contradiction seeding engine
 - [ ] Layer 3 encoding corruption payloads
 - [ ] Layer 4 MITM proxy interception
-- [ ] One-click test deployment (`deploy.sh --test-mode`)
-- [ ] Real-time capture dashboard
-- [ ] JSON export for SIEM/SOAR integration
 - [ ] Integration testing with open-source offensive AI agents
-- [ ] Production deployment guide
+- [ ] Production deployment guide (Docker, K8s, Edge)
 
 ---
 
@@ -306,18 +354,19 @@ labyrinth/
 
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
+| Go | 1.22+ | Build the CLI binary |
 | Docker / Podman | 20.10+ | Container orchestration |
-| Python | 3.10+ | Orchestrator & tooling |
-| Linux host | Ubuntu 22.04+ | Recommended base OS |
-| Dedicated VLAN | — | Honeypot network isolation (production) |
+| Python | 3.10+ | Orchestrator & dashboard |
+| Linux / macOS | — | Recommended host OS |
+| Dedicated VLAN | — | Portal trap network isolation (production only) |
 
-> **Test mode** requires only Docker and Python. No VLAN setup needed.
+> **Test mode** requires only Go and Docker. No VLAN setup needed.
 
 ---
 
 ## 🔬 Research Context
 
-This project explores a novel defensive category: **adversarial cognitive honeypots** — environments purpose-built to exploit the architectural dependencies of LLM-based autonomous agents.
+This project explores a novel defensive category: **adversarial cognitive portal traps** — environments purpose-built to exploit the architectural dependencies of LLM-based autonomous agents.
 
 Unlike traditional honeypots that passively observe, LABYRINTH actively degrades and ultimately commandeers the attacking agent's operational capability.
 
@@ -339,7 +388,7 @@ We welcome contributions from the defensive security community.
 
 ## ⚠️ Disclaimer
 
-This project is intended for **defensive security research only**. The techniques described are designed to be deployed within controlled honeypot environments that the operator owns and controls. Always ensure compliance with applicable laws and organizational policies.
+This project is intended for **defensive security research only**. The techniques described are designed to be deployed within controlled portal trap environments that the operator owns and controls. Always ensure compliance with applicable laws and organizational policies.
 
 ## 📄 License
 

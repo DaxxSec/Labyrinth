@@ -15,7 +15,7 @@ func renderLogs(a *App, height int) string {
 	if len(a.sessions) == 0 {
 		b.WriteString(StyleDim.Render("  No log data available\n\n"))
 		b.WriteString(StyleDim.Render("  Logs will stream here when sessions are active.\n"))
-		b.WriteString(StyleDim.Render("  Deploy an environment and point an agent at the honeypot.\n"))
+		b.WriteString(StyleDim.Render("  Deploy an environment and point an agent at the portal trap.\n"))
 		return b.String()
 	}
 

@@ -30,8 +30,8 @@ func renderEmptySessions() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(StyleDim.Render("  No active sessions\n\n"))
-	b.WriteString(StyleDim.Render("  Waiting for connections to honeypot services...\n"))
-	b.WriteString(StyleDim.Render("  Point an offensive agent at localhost:2222 or localhost:8080\n"))
+	b.WriteString(StyleDim.Render("  Waiting for connections to portal trap services...\n"))
+	b.WriteString(StyleDim.Render("  Point an offensive agent at the portal trap: localhost:2222 or localhost:8080\n"))
 	return b.String()
 }
 

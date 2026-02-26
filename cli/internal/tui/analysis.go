@@ -18,7 +18,7 @@ func renderAnalysis(a *App, height int) string {
 	if a.stats.CapturedPrompts == 0 && a.stats.TotalEvents == 0 {
 		b.WriteString(StyleDim.Render("  No analysis data available\n\n"))
 		b.WriteString(StyleDim.Render("  Intelligence will appear here when:\n"))
-		b.WriteString(StyleDim.Render("  - AI agents interact with honeypot services\n"))
+		b.WriteString(StyleDim.Render("  - AI agents interact with portal trap services\n"))
 		b.WriteString(StyleDim.Render("  - Prompts are captured via L4 intercept\n"))
 		b.WriteString(StyleDim.Render("  - Session behaviors are classified\n"))
 		return b.String()

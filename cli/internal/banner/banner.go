@@ -17,6 +17,6 @@ func Print() {
 	fmt.Println(green + "  ███████╗██║  ██║██████╔╝   ██║   ██║  ██║██║██║ ╚████║   ██║   ██║  ██║" + reset)
 	fmt.Println(green + "  ╚══════╝╚═╝  ╚═╝╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝" + reset)
 	fmt.Println()
-	fmt.Println("  " + dim + "Adversarial Cognitive Honeypot Architecture" + reset)
+	fmt.Println("  " + dim + "Adversarial Cognitive Portal Trap Architecture" + reset)
 	fmt.Println()
 }
