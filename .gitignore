@@ -36,3 +36,6 @@ build/
 
 # Go binary
 cli/labyrinth
+
+# Attacker agent data (created by scripts/attacker-setup.sh)
+.attacker/
