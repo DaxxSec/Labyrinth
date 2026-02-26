@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <sub>Built by <strong>Stephen Stewart</strong> & <strong>Claude</strong> (Anthropic) · <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/ItzDaxxy/labyrinth">GitHub</a></sub>
+  <sub>Built by <strong>Stephen Stewart</strong> & <strong>Claude</strong> (Anthropic) · <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/DaxxSec/labyrinth">GitHub</a></sub>
 </p>
 
 ---
@@ -36,7 +36,7 @@ Autonomous AI agents are being deployed for offensive cyber operations — autom
 
 ```bash
 # Clone, build, and install (installs Go if needed)
-git clone https://github.com/ItzDaxxy/labyrinth.git
+git clone https://github.com/DaxxSec/labyrinth.git
 cd labyrinth && ./install.sh
 
 # Deploy a test environment
@@ -46,7 +46,7 @@ labyrinth deploy -t
 labyrinth tui
 ```
 
-Or grab a [pre-built binary](https://github.com/ItzDaxxy/labyrinth/releases) and run `./labyrinth --install`.
+Or grab a [pre-built binary](https://github.com/DaxxSec/labyrinth/releases) and run `./labyrinth --install`.
 
 ### Test with an Attacker Agent
 
@@ -112,10 +112,13 @@ See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
 - [x] Real-time web capture dashboard
 - [x] Attacker agent setup script (PentAGI, PentestAgent, Strix, custom)
 - [x] JSONL forensic event capture & export
-- [ ] Layer 1 container orchestration prototype
-- [ ] Layer 2 contradiction seeding engine
-- [ ] Layer 3 encoding corruption payloads
-- [ ] Layer 4 MITM proxy interception
+- [x] Build-from-source installer (`install.sh`)
+- [x] Structured documentation (docs/)
+- [x] Layer 1 container orchestration (PAM hooks, bait watchers, HTTP portal trap)
+- [x] Layer 2 contradiction seeding engine (13 contradictions, adaptive density)
+- [x] Layer 3 encoding corruption payloads (enhanced: urandom, TERM, recovery traps)
+- [x] Layer 4 MITM proxy interception (5 AI APIs, 3 swap modes)
+- [x] Orchestrator event loop (watchdog, Docker SDK, session lifecycle)
 - [ ] Production deployment guide (Docker, K8s, Edge)
 
 ---
@@ -145,5 +148,5 @@ MIT License — see [LICENSE](LICENSE) for details.
   <br>
   <sub>Defending against the future, today.</sub>
   <br><br>
-  <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/ItzDaxxy/labyrinth">GitHub</a>
+  <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/DaxxSec/labyrinth">GitHub</a>
 </p>
