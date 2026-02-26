@@ -33,3 +33,6 @@ session_logs/
 dist/
 build/
 *.egg-info/
+
+# Go binary
+cli/labyrinth
