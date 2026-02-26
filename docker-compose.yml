@@ -1,0 +1,114 @@
+# ═══════════════════════════════════════════════════════════════
+#  Project LABYRINTH — Docker Compose (Test Mode)
+#  Authors: Stephen Stewart & Claude (Anthropic)
+# ═══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Layer 1: SSH Honeypot ─────────────────────────────────
+  honeypot-ssh:
+    build:
+      context: .
+      dockerfile: docker/honeypot-ssh.Dockerfile
+    container_name: labyrinth-ssh
+    labels:
+      project: labyrinth
+      layer: "1"
+    ports:
+      - "2222:22"
+    networks:
+      - labyrinth-net
+    volumes:
+      - forensic-data:/var/labyrinth/forensics
+    restart: unless-stopped
+
+  # ── Layer 1: HTTP Honeypot ────────────────────────────────
+  honeypot-http:
+    build:
+      context: .
+      dockerfile: docker/honeypot-http.Dockerfile
+    container_name: labyrinth-http
+    labels:
+      project: labyrinth
+      layer: "1"
+    ports:
+      - "8080:80"
+    networks:
+      - labyrinth-net
+    volumes:
+      - forensic-data:/var/labyrinth/forensics
+    restart: unless-stopped
+
+  # ── Orchestrator ──────────────────────────────────────────
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/orchestrator.Dockerfile
+    container_name: labyrinth-orchestrator
+    labels:
+      project: labyrinth
+      layer: orchestrator
+    networks:
+      - labyrinth-net
+    volumes:
+      - forensic-data:/var/labyrinth/forensics
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - LABYRINTH_MODE=test
+      - LABYRINTH_LOG_LEVEL=DEBUG
+    depends_on:
+      - honeypot-ssh
+      - honeypot-http
+    restart: unless-stopped
+
+  # ── Layer 4: MITM Proxy ──────────────────────────────────
+  proxy:
+    build:
+      context: .
+      dockerfile: docker/proxy.Dockerfile
+    container_name: labyrinth-proxy
+    labels:
+      project: labyrinth
+      layer: "4"
+    networks:
+      - labyrinth-net
+    volumes:
+      - forensic-data:/var/labyrinth/forensics
+    environment:
+      - PROXY_MODE=passive
+    restart: unless-stopped
+
+  # ── Dashboard ─────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    container_name: labyrinth-dashboard
+    labels:
+      project: labyrinth
+      layer: dashboard
+    ports:
+      - "9000:9000"
+    networks:
+      - labyrinth-net
+    volumes:
+      - forensic-data:/var/labyrinth/forensics:ro
+    environment:
+      - DASHBOARD_PORT=9000
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+networks:
+  labyrinth-net:
+    driver: bridge
+    labels:
+      project: labyrinth
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  forensic-data:
+    labels:
+      project: labyrinth

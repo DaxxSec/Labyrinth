@@ -1,0 +1,50 @@
+# LABYRINTH Configuration
+# Authors: Stephen Stewart & Claude (Anthropic)
+# Copy to labyrinth.yaml and customize for your deployment.
+
+layer0:
+  encryption:
+    algorithm: AES-256-GCM
+    key_source: vault  # vault | env | file
+  network:
+    honeypot_vlan: 100
+    production_route: deny
+  proxy:
+    validate_scope_on_startup: true
+    fail_mode: closed
+  retention:
+    credentials_days: 7
+    fingerprints_days: 90
+    decision_logs: indefinite
+
+layer1:
+  honeypot_services:
+    - type: ssh
+      port: 22
+      template: ubuntu-22.04-staged
+    - type: http
+      port: 8080
+      template: nginx-vulnerable
+  container:
+    runtime: docker  # docker | podman
+    network_mode: bridge
+    egress_proxy: true
+
+layer2:
+  adaptive: true
+  contradiction_density: medium  # low | medium | high
+  max_container_depth: 5
+
+layer3:
+  activation: on_escalation  # on_connect | on_escalation | manual
+  corruption_method: bashrc_payload
+
+layer4:
+  mode: auto  # auto | manual (Burp-style intercept)
+  default_swap: passive  # passive | extract | double_agent
+  log_original_prompts: true
+
+siem:
+  enabled: true
+  endpoint: https://siem.internal/api/events
+  alert_prefix: LABYRINTH

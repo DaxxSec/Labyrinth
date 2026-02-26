@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets & config overrides
+*.env
+configs/local/
+secrets/
+labyrinth.yaml
+
+# Forensic data (NEVER commit captured data)
+forensic_data/
+captured_prompts/
+session_logs/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
