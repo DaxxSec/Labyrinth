@@ -5,7 +5,7 @@
 
 services:
 
-  # ── Layer 1: SSH Honeypot ─────────────────────────────────
+  # ── Layer 1: SSH Portal Trap ────────────────────────────────
   honeypot-ssh:
     build:
       context: .
@@ -22,7 +22,7 @@ services:
       - forensic-data:/var/labyrinth/forensics
     restart: unless-stopped
 
-  # ── Layer 1: HTTP Honeypot ────────────────────────────────
+  # ── Layer 1: HTTP Portal Trap ───────────────────────────────
   honeypot-http:
     build:
       context: .
@@ -52,7 +52,7 @@ services:
       - labyrinth-net
     volumes:
       - forensic-data:/var/labyrinth/forensics
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - LABYRINTH_MODE=test
       - LABYRINTH_LOG_LEVEL=DEBUG
@@ -71,12 +71,26 @@ services:
       project: labyrinth
       layer: "4"
     networks:
-      - labyrinth-net
+      labyrinth-net:
+        ipv4_address: 172.30.0.50
     volumes:
       - forensic-data:/var/labyrinth/forensics
     environment:
       - PROXY_MODE=passive
+      - LABYRINTH_L4_MODE=passive
     restart: unless-stopped
+
+  # ── Session Template (build only, not a running service) ──
+  session-template:
+    build:
+      context: .
+      dockerfile: docker/session-template.Dockerfile
+    image: labyrinth-session-template
+    container_name: labyrinth-session-template-build
+    labels:
+      project: labyrinth
+      layer: session
+    entrypoint: ["echo", "Template image built successfully"]
 
   # ── Dashboard ─────────────────────────────────────────────
   dashboard:

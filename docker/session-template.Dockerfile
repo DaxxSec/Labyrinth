@@ -1,55 +1,59 @@
 # ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — SSH Portal Trap (Layer 1: THRESHOLD)
+#  LABYRINTH — Session Template Container
 #  Authors: Stephen Stewart & Claude (Anthropic)
+#
+#  Base image for dynamically spawned session containers.
+#  The orchestrator creates containers from this image with
+#  per-session entrypoint scripts injected via environment variable.
 # ═══════════════════════════════════════════════════════════════
 FROM ubuntu:22.04
 
 LABEL project="labyrinth"
-LABEL layer="1"
-LABEL service="honeypot-ssh"
+LABEL layer="session"
 
 RUN apt-get update && apt-get install -y \
     openssh-server \
     python3 \
-    python3-pip \
+    inotify-tools \
     curl \
     net-tools \
-    inotify-tools \
     xxd \
-    libpam-modules \
+    vim \
+    less \
+    jq \
+    wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create staged environment that looks like a real server
+# Create staged admin user (same creds as portal trap)
 RUN useradd -m -s /bin/bash admin && \
     echo "admin:admin123" | chpasswd && \
     mkdir -p /var/run/sshd && \
     mkdir -p /var/labyrinth/forensics/sessions
 
-# SSH config: allow password auth (portal trap)
+# SSH config
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
 
-# PAM hook: notify orchestrator on successful auth
-COPY src/layer1_portal/auth_hook.py /opt/.labyrinth/auth_hook.py
-RUN chmod +x /opt/.labyrinth/auth_hook.py && \
-    echo "session optional pam_exec.so /usr/bin/python3 /opt/.labyrinth/auth_hook.py" >> /etc/pam.d/sshd
-
-# Layer 2 seeding: pre-plant bait credentials
+# Plant initial bait credential
 RUN mkdir -p /opt/.credentials && \
-    echo "DB_ADMIN_KEY=labyrinth_bait_$(head -c 16 /dev/urandom | xxd -p)" > /opt/.credentials/db_admin.key && \
+    echo "DB_ADMIN_KEY=labyrinth_bait_session_key" > /opt/.credentials/db_admin.key && \
     chmod 600 /opt/.credentials/db_admin.key
 
-# Layer 3 payload: encoding corruption (activated by orchestrator)
+# Layer 3 payload
 COPY src/layer3_blindfold/payload.sh /opt/.labyrinth/blindfold.sh
 RUN chmod +x /opt/.labyrinth/blindfold.sh
 
-# Session logging
+# Bait watcher
+COPY src/layer1_portal/bait_watcher.sh /opt/.labyrinth/bait_watcher.sh
+RUN chmod +x /opt/.labyrinth/bait_watcher.sh
+
+# Session logger
 COPY src/layer1_portal/session_logger.py /opt/.labyrinth/session_logger.py
 
-# Bait watcher + entrypoint
-COPY src/layer1_portal/bait_watcher.sh /opt/.labyrinth/bait_watcher.sh
-COPY src/layer1_portal/entrypoint.sh /opt/.labyrinth/entrypoint.sh
-RUN chmod +x /opt/.labyrinth/bait_watcher.sh /opt/.labyrinth/entrypoint.sh
+# Session entrypoint: reads LABYRINTH_ENTRYPOINT_SCRIPT env, decodes, executes
+COPY src/layer2_maze/entrypoint.sh /opt/.labyrinth/entrypoint.sh
+RUN chmod +x /opt/.labyrinth/entrypoint.sh
 
 EXPOSE 22
 

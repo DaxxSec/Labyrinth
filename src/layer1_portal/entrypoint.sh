@@ -1,22 +1,21 @@
+#!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — Orchestrator
+#  LABYRINTH — SSH Portal Trap Entrypoint
 #  Authors: Stephen Stewart & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
-FROM python:3.11-slim
 
-LABEL project="labyrinth"
-LABEL layer="orchestrator"
+set -e
 
-RUN pip install --no-cache-dir pyyaml docker watchdog
+# Ensure forensics directory exists
+mkdir -p /var/labyrinth/forensics/sessions
 
-RUN mkdir -p /var/labyrinth/forensics/sessions /app
+# Start bait file watcher in background
+if [ -f /opt/.labyrinth/bait_watcher.sh ]; then
+    /opt/.labyrinth/bait_watcher.sh &
+fi
 
-# Copy full source tree for cross-module imports
-COPY src/ /app/
-COPY configs/ /app/configs/
+# Generate SSH host keys if missing
+ssh-keygen -A 2>/dev/null || true
 
-ENV PYTHONPATH=/app
-
-WORKDIR /app
-
-CMD ["python3", "-m", "orchestrator"]
+# Start sshd in foreground with logging
+exec /usr/sbin/sshd -D -e
