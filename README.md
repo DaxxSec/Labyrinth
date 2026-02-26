@@ -36,30 +36,34 @@ Autonomous AI agents are being deployed for offensive cyber operations — autom
 
 Deploy a complete test environment in one command. Run your offensive AI agents against it and watch them get trapped in real time.
 
-### Option A: Go CLI (recommended)
+### Option A: Download binary (no build tools needed)
+
+Grab a pre-built binary from [GitHub Releases](https://github.com/ItzDaxxy/labyrinth/releases), then:
 
 ```bash
-git clone https://github.com/ItzDaxxy/labyrinth.git
-cd labyrinth/cli
-
-# Build the binary
-go build -o labyrinth .
-
-# Deploy a test environment
-./labyrinth deploy -t
-
-# Launch the TUI monitoring dashboard
-./labyrinth tui
-
-# Install globally (optional)
-./labyrinth --install
+chmod +x labyrinth
+./labyrinth --install            # Copies to ~/.local/bin
+labyrinth deploy -t              # Deploy a test environment
 ```
 
-### Option B: Shell script
+### Option B: Build from source
 
 ```bash
-git clone https://github.com/ItzDaxxy/labyrinth.git
-cd labyrinth
+git clone https://github.com/ItzDaxxy/labyrinth.git && cd labyrinth && ./install.sh
+```
+
+This installs Go (if needed), builds the binary, and adds `labyrinth` to your PATH.
+
+### Then deploy
+
+```bash
+labyrinth deploy -t              # Deploy a test environment
+labyrinth tui                    # Launch the TUI monitoring dashboard
+```
+
+### Alternative: Shell script (no Go or binary needed)
+
+```bash
 ./deploy.sh -t
 ```
 
