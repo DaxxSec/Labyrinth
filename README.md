@@ -119,6 +119,11 @@ See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
 - [x] Layer 3 encoding corruption payloads (enhanced: urandom, TERM, recovery traps)
 - [x] Layer 4 MITM proxy interception (5 AI APIs, 3 swap modes)
 - [x] Orchestrator event loop (watchdog, Docker SDK, session lifecycle)
+- [ ] End-to-end smoke test (full kill chain verification)
+- [ ] Auto CA cert injection on container spawn
+- [ ] L0 BEDROCK runtime enforcement (VLAN validation, forensic encryption)
+- [ ] SIEM integration (event push to external endpoints)
+- [ ] Forensic data retention policy (automated cleanup/aging)
 - [ ] Production deployment guide (Docker, K8s, Edge)
 
 ---
