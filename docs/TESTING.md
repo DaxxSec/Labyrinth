@@ -6,6 +6,16 @@ LABYRINTH is designed to capture, degrade, and commandeer autonomous offensive A
 
 **All attacker agents run inside Docker containers**, isolated from your host machine and connected to the LABYRINTH network.
 
+## Smoke Test First
+
+Before testing with attacker agents, verify your deployment is healthy:
+
+```bash
+./scripts/smoke-test.sh
+```
+
+This builds the CLI, deploys the full stack, exercises every bait endpoint, verifies forensic capture, and tears down cleanly. All 22 checks should pass.
+
 ## Quick Start
 
 ```bash

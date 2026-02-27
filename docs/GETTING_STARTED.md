@@ -55,6 +55,16 @@ cd labyrinth
 ./deploy.sh -t
 ```
 
+## Verify Your Setup
+
+Before your first real deployment, run the smoke test to verify everything builds and works end-to-end. It deploys, exercises all endpoints, checks forensic capture, and tears down cleanly:
+
+```bash
+./scripts/smoke-test.sh
+```
+
+You should see **ALL 22 TESTS PASSED**. If any fail, check the output for details — common issues are Docker not running or ports already in use.
+
 ## Deploy Your First Environment
 
 ```bash

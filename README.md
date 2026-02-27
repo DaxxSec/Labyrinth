@@ -49,6 +49,9 @@ You need **Docker** (or a compatible runtime) and optionally **Go 1.22+** to bui
 git clone https://github.com/DaxxSec/labyrinth.git
 cd labyrinth && ./scripts/install.sh
 
+# Run the smoke test to verify everything works
+./scripts/smoke-test.sh
+
 # Deploy a test environment
 labyrinth deploy -t
 
