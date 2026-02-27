@@ -171,16 +171,49 @@ fi
 section "Deploying Environment: ${ENV_NAME}"
 
 cd "$REPO_DIR"
-deploy_output=$("$CLI_BIN" deploy --skip-preflight -t "$ENV_NAME" 2>&1)
+deploy_log="/tmp/labyrinth-smoke-deploy.log"
+info "Building and deploying (this may take a minute)..."
+
+# Run deploy in background, stream progress
+"$CLI_BIN" deploy --skip-preflight -t "$ENV_NAME" > "$deploy_log" 2>&1 &
+deploy_pid=$!
+
+# Show container status while deploy runs
+while kill -0 $deploy_pid 2>/dev/null; do
+    containers=$(docker ps -a --filter "label=project=labyrinth" --format '{{.Names}}\t{{.Status}}' 2>/dev/null || echo "")
+    if [ -n "$containers" ]; then
+        count=$(echo "$containers" | wc -l | tr -d ' ')
+        echo -e "    ${DIM}[deploying]${NC} ${count} container(s) detected:"
+        echo "$containers" | while IFS=$'\t' read -r cname cstatus; do
+            short="${cname##labyrinth-}"
+            if echo "$cstatus" | grep -qi "up"; then
+                echo -e "      ${GREEN}●${NC} ${short}: ${cstatus}"
+            elif echo "$cstatus" | grep -qi "created\|exited"; then
+                echo -e "      ${YELLOW}○${NC} ${short}: ${cstatus}"
+            else
+                echo -e "      ${DIM}◌${NC} ${short}: ${cstatus}"
+            fi
+        done
+    else
+        echo -e "    ${DIM}[deploying]${NC} Building images..."
+    fi
+    sleep 5
+done
+
+wait $deploy_pid
 deploy_exit=$?
+
 if [ $deploy_exit -eq 0 ]; then
     DEPLOYED=true
     pass "Deploy command succeeded"
 else
     fail "Deploy command failed"
-    echo "$deploy_output" | tail -20
+    echo ""
+    tail -20 "$deploy_log"
+    rm -f "$deploy_log"
     exit 1
 fi
+rm -f "$deploy_log"
 
 # ══════════════════════════════════════════════════════════════
 #  Step 4: Wait for Healthy
@@ -192,15 +225,20 @@ elapsed=0
 
 while [ $elapsed -lt $TIMEOUT ]; do
     running=0
+    running_names=""
+    pending_names=""
     for name in $EXPECTED_CONTAINERS; do
         if docker ps --filter "name=^${name}$" --filter "status=running" --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$"; then
             running=$((running + 1))
+            running_names="${running_names} ${GREEN}${name##labyrinth-}${NC}"
+        else
+            pending_names="${pending_names} ${YELLOW}${name##labyrinth-}${NC}"
         fi
     done
     if [ $running -ge 5 ]; then
         break
     fi
-    echo -e "    ${DIM}${running}/5 containers running (${elapsed}s / ${TIMEOUT}s)${NC}"
+    echo -e "    ${DIM}[${elapsed}s]${NC} ${running}/5 up:${running_names}  waiting:${pending_names}"
     sleep 5
     elapsed=$((elapsed + 5))
 done
