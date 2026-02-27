@@ -115,20 +115,20 @@ if ! command -v go > /dev/null 2>&1; then
 fi
 info "Go found: $(go version | awk '{print $3}')"
 
-# Port availability (macOS-compatible)
-for port in 2222 8080 9000; do
-    if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
-        error "Port ${port} is already in use. Free it and try again."
-        exit 1
-    fi
-    info "Port ${port} is available"
-done
-
-# No leftover smoke-test containers
+# Clean up any existing labyrinth containers BEFORE checking ports
 if docker ps -a --filter "label=project=labyrinth" --format '{{.Names}}' 2>/dev/null | grep -q .; then
-    warn "Existing labyrinth containers detected — cleaning up first"
+    warn "Existing labyrinth containers detected — tearing down"
     COMPOSE_PROJECT_NAME="labyrinth-${ENV_NAME}" \
         docker compose -f "${REPO_DIR}/docker-compose.yml" down -v 2>/dev/null || true
+    # Also try common compose project names from previous runs
+    for proj in labyrinth-smoke-test labyrinth-labyrinth-test; do
+        COMPOSE_PROJECT_NAME="$proj" \
+            docker compose -f "${REPO_DIR}/docker-compose.yml" down -v 2>/dev/null || true
+    done
+    # Kill any stragglers by label
+    docker ps -q --filter "label=project=labyrinth" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+    sleep 3
+    info "Previous labyrinth containers cleaned up"
 fi
 
 # No stale registry entry
@@ -136,6 +136,19 @@ if [ -f "${ENV_DIR}/${ENV_NAME}.json" ]; then
     warn "Stale registry entry found — removing"
     rm -f "${ENV_DIR}/${ENV_NAME}.json"
 fi
+
+# Port availability (macOS-compatible)
+for port in 2222 8080 9000; do
+    if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
+        # Check if the process holding this port is Docker/labyrinth-related
+        port_pid=$(lsof -ti ":${port}" -sTCP:LISTEN 2>/dev/null || echo "")
+        port_cmd=$(ps -p "${port_pid}" -o comm= 2>/dev/null || echo "unknown")
+        error "Port ${port} is still in use by '${port_cmd}' (PID ${port_pid}) after cleanup."
+        error "Free it manually and try again."
+        exit 1
+    fi
+    info "Port ${port} is available"
+done
 
 info "All preflight checks passed"
 
@@ -158,11 +171,14 @@ fi
 section "Deploying Environment: ${ENV_NAME}"
 
 cd "$REPO_DIR"
-if "$CLI_BIN" deploy -t "$ENV_NAME" 2>&1; then
+deploy_output=$("$CLI_BIN" deploy -t "$ENV_NAME" 2>&1)
+deploy_exit=$?
+if [ $deploy_exit -eq 0 ]; then
     DEPLOYED=true
     pass "Deploy command succeeded"
 else
     fail "Deploy command failed"
+    echo "$deploy_output" | tail -20
     exit 1
 fi
 
@@ -300,11 +316,14 @@ fi
 section "Tearing Down: ${ENV_NAME}"
 
 cd "$REPO_DIR"
-if "$CLI_BIN" teardown "$ENV_NAME" 2>&1; then
+teardown_output=$("$CLI_BIN" teardown "$ENV_NAME" 2>&1)
+teardown_exit=$?
+if [ $teardown_exit -eq 0 ]; then
     DEPLOYED=false
     pass "Teardown command succeeded"
 else
     fail "Teardown command failed"
+    echo "$teardown_output" | tail -10
     DEPLOYED=false
 fi
 
