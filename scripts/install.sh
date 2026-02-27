@@ -169,7 +169,7 @@ fi
 
 section "Building LABYRINTH CLI"
 
-cd "${SCRIPT_DIR}/cli"
+cd "${SCRIPT_DIR}/../cli"
 
 info "Fetching dependencies..."
 go mod download 2>&1 | while read -r line; do
