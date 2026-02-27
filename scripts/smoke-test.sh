@@ -196,6 +196,8 @@ while kill -0 $deploy_pid 2>/dev/null; do
             short="${cname##labyrinth-}"
             if echo "$cstatus" | grep -qi "up"; then
                 echo -e "      ${GREEN}●${NC} ${short}: ${cstatus}"
+            elif echo "$cstatus" | grep -qi "Exited (0)"; then
+                echo -e "      ${GREEN}●${NC} ${short}: ${cstatus}"
             elif echo "$cstatus" | grep -qi "created\|exited"; then
                 echo -e "      ${YELLOW}○${NC} ${short}: ${cstatus}"
             else
