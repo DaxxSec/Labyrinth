@@ -64,10 +64,16 @@ Or grab a [pre-built binary](https://github.com/DaxxSec/labyrinth/releases) and 
 ### Test with an Attacker Agent
 
 ```bash
-./scripts/attacker-setup.sh
+labyrinth attacker setup
 ```
 
 Choose from **PentAGI**, **PentestAgent**, **Strix**, or bring your own tool. All agents run in isolated Docker containers on the LABYRINTH network — nothing touches your host.
+
+```bash
+labyrinth attacker list                 # See all agents and their status
+labyrinth attacker run pentagi          # Quick-launch an agent
+labyrinth attacker stop --all           # Stop all agents when done
+```
 
 ### What Happens
 
@@ -123,7 +129,7 @@ See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
 - [x] Go CLI binary with full environment lifecycle
 - [x] TUI monitoring dashboard (5 tabs)
 - [x] Real-time web capture dashboard
-- [x] Attacker agent setup script (PentAGI, PentestAgent, Strix, custom)
+- [x] Attacker agent CLI (`labyrinth attacker` — setup, run, stop, uninstall)
 - [x] JSONL forensic event capture & export
 - [x] Build-from-source installer (`install.sh`)
 - [x] Structured documentation (docs/)
@@ -158,6 +164,19 @@ This project is intended for **defensive security research only**. The technique
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+LABYRINTH integrates with the following open-source offensive AI projects for testing. We thank their authors and communities:
+
+| Project | Repository | Description |
+|---------|-----------|-------------|
+| **PentAGI** | [vxcontrol/pentagi](https://github.com/vxcontrol/pentagi) | Fully autonomous multi-agent penetration testing system with web UI |
+| **PentestAgent** | [GH05TCREW/PentestAgent](https://github.com/GH05TCREW/PentestAgent) | AI-powered pentesting framework with TUI, Agent & Crew modes |
+| **Strix** | [UseStrix/strix](https://github.com/UseStrix/strix) | AI hacker agents with CLI/TUI and Docker sandbox isolation |
+| **Kali Linux** | [kali.org](https://www.kali.org/) | Industry-standard penetration testing distribution ([Docker images](https://www.kali.org/docs/containers/official-kalilinux-docker/)) |
 
 ---
 
