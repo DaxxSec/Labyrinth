@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/api"
+	"github.com/DaxxSec/labyrinth/cli/internal/api"
 	"charm.land/lipgloss/v2"
 )
 

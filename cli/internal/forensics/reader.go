@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/api"
+	"github.com/DaxxSec/labyrinth/cli/internal/api"
 )
 
 // Reader provides direct access to forensic JSONL files.

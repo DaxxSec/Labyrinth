@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/docker"
-	"github.com/ItzDaxxy/labyrinth/cli/internal/registry"
+	"github.com/DaxxSec/labyrinth/cli/internal/docker"
+	"github.com/DaxxSec/labyrinth/cli/internal/registry"
 	"github.com/spf13/cobra"
 )
 

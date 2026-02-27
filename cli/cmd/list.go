@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/registry"
+	"github.com/DaxxSec/labyrinth/cli/internal/registry"
 	"github.com/spf13/cobra"
 )
 

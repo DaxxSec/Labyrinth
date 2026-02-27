@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/banner"
+	"github.com/DaxxSec/labyrinth/cli/internal/banner"
 	"github.com/spf13/cobra"
 )
 

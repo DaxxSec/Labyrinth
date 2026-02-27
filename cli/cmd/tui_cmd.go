@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/tui"
+	"github.com/DaxxSec/labyrinth/cli/internal/tui"
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )

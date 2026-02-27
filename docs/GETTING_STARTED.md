@@ -14,7 +14,7 @@
 
 ### Option A: Pre-built binary
 
-Download from [GitHub Releases](https://github.com/ItzDaxxy/labyrinth/releases):
+Download from [GitHub Releases](https://github.com/DaxxSec/labyrinth/releases):
 
 ```bash
 chmod +x labyrinth
@@ -24,7 +24,7 @@ chmod +x labyrinth
 ### Option B: Build from source
 
 ```bash
-git clone https://github.com/ItzDaxxy/labyrinth.git
+git clone https://github.com/DaxxSec/labyrinth.git
 cd labyrinth
 ./install.sh
 ```
@@ -40,7 +40,7 @@ The install script will:
 If you just want to deploy without the CLI binary:
 
 ```bash
-git clone https://github.com/ItzDaxxy/labyrinth.git
+git clone https://github.com/DaxxSec/labyrinth.git
 cd labyrinth
 ./deploy.sh -t
 ```

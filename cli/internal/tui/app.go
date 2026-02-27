@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ItzDaxxy/labyrinth/cli/internal/api"
-	"github.com/ItzDaxxy/labyrinth/cli/internal/forensics"
-	"github.com/ItzDaxxy/labyrinth/cli/internal/registry"
+	"github.com/DaxxSec/labyrinth/cli/internal/api"
+	"github.com/DaxxSec/labyrinth/cli/internal/forensics"
+	"github.com/DaxxSec/labyrinth/cli/internal/registry"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )

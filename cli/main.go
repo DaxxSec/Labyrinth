@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/ItzDaxxy/labyrinth/cli/cmd"
+	"github.com/DaxxSec/labyrinth/cli/cmd"
 )
 
 func main() {

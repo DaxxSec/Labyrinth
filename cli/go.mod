@@ -1,4 +1,4 @@
-module github.com/ItzDaxxy/labyrinth/cli
+module github.com/DaxxSec/labyrinth/cli
 
 go 1.25.0
 
