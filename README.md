@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="#-quickstart"><img src="https://img.shields.io/badge/🚀_One--Click_Deploy-Ready-00ff88?style=for-the-badge" alt="One-Click Deploy"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2563eb?style=for-the-badge" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-2563eb?style=for-the-badge" alt="AGPL-3.0 License"></a>
   <a href="#-status"><img src="https://img.shields.io/badge/Status-Active_Research-ff3366?style=for-the-badge" alt="Status"></a>
 </p>
 
@@ -167,7 +167,9 @@ This project is intended for **defensive security research only**. The technique
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+AGPL-3.0 License — see [LICENSE](LICENSE) for details.
+
+This means you can freely use, modify, and distribute LABYRINTH, but if you deploy a modified version as a network service, you must release your source code under the same license. This prevents commercial exploitation while keeping the project fully open source.
 
 ---
 
