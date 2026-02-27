@@ -8,12 +8,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is set at build time via -ldflags.
+var Version = "dev"
+
 var installFlag bool
 
 var rootCmd = &cobra.Command{
-	Use:   "labyrinth",
-	Short: "LABYRINTH — Adversarial Cognitive Portal Trap Architecture",
-	Long:  "Deploy, manage, and monitor LABYRINTH portal trap environments.",
+	Use:     "labyrinth",
+	Short:   "LABYRINTH — Adversarial Cognitive Portal Trap Architecture",
+	Long:    "Deploy, manage, and monitor LABYRINTH portal trap environments.",
+	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Print banner for all commands except TUI (it takes over the screen)
 		if cmd.Name() != "tui" {

@@ -237,7 +237,8 @@ go mod download 2>&1 | while read -r line; do
 done
 
 info "Building binary..."
-go build -ldflags="-s -w" -o labyrinth .
+CLI_VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+go build -ldflags="-s -w -X github.com/DaxxSec/labyrinth/cli/cmd.Version=${CLI_VERSION}" -o labyrinth .
 binary_size=$(du -h labyrinth | cut -f1 | xargs)
 info "Built labyrinth binary (${binary_size})"
 

@@ -166,7 +166,8 @@ info "All preflight checks passed"
 section "Building CLI"
 
 cd "${REPO_DIR}/cli"
-if go build -o "$CLI_BIN" .; then
+CLI_VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "smoke")
+if go build -ldflags="-X github.com/DaxxSec/labyrinth/cli/cmd.Version=${CLI_VERSION}" -o "$CLI_BIN" .; then
     pass "CLI binary built: ${CLI_BIN}"
 else
     fail "CLI build failed"
