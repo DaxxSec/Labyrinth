@@ -64,8 +64,11 @@ Or grab a [pre-built binary](https://github.com/DaxxSec/labyrinth/releases) and 
 ### Test with an Attacker Agent
 
 ```bash
-labyrinth attacker setup
+labyrinth bait drop                     # Plant randomized bait for agents to discover
+labyrinth attacker setup                # Pick and configure an attacker agent
 ```
+
+The deploy command prompts you to drop bait automatically. Bait generates a unique randomized identity (company, users, passwords) and plants discoverable credentials on the portal trap services — giving attacker agents breadcrumbs to find their way in.
 
 Choose from **PentAGI**, **PentestAgent**, **Strix**, or bring your own tool. All agents run in isolated Docker containers on the LABYRINTH network — nothing touches your host.
 
@@ -73,6 +76,7 @@ Choose from **PentAGI**, **PentestAgent**, **Strix**, or bring your own tool. Al
 labyrinth attacker list                 # See all agents and their status
 labyrinth attacker run pentagi          # Quick-launch an agent
 labyrinth attacker stop --all           # Stop all agents when done
+labyrinth bait clean                    # Remove bait when done
 ```
 
 ### What Happens

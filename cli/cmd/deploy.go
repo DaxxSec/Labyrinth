@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/DaxxSec/labyrinth/cli/internal/docker"
@@ -148,8 +149,24 @@ func deployTest(envName string) {
 	fmt.Println("  Point your offensive AI agent at the portal trap.")
 	fmt.Println("  Watch captures in real time at the dashboard.")
 	fmt.Println()
+
+	// Prompt to drop bait
+	yellow := "\033[1;33m"
 	dim := "\033[2m"
 	cyan := "\033[0;36m"
+	fmt.Printf("  %sBait:%s Attacker agents need discoverable credentials to enter the trap.\n", yellow, reset)
+	fmt.Printf("  %sThe bait command generates randomized fake credentials and plants them\n", dim)
+	fmt.Printf("  on the portal trap services so agents can find and exploit them.%s\n\n", reset)
+	answer := promptInput("Drop bait now? [Y/n]")
+	if answer == "" || strings.ToLower(answer) == "y" {
+		// Run bait drop inline
+		runBaitDrop(nil, nil)
+	} else {
+		fmt.Println()
+		fmt.Printf("  %sNo problem — drop bait later with:%s\n", dim, reset)
+		fmt.Printf("  %s  labyrinth bait drop%s\n\n", cyan, reset)
+	}
+
 	fmt.Printf("  %sQuick-launch an attacker:%s\n", bold, reset)
 	fmt.Printf("  %s  labyrinth attacker setup%s          %sInteractive agent setup%s\n", cyan, reset, dim, reset)
 	fmt.Printf("  %s  labyrinth attacker run pentagi%s    %sLaunch PentAGI (autonomous)%s\n", cyan, reset, dim, reset)

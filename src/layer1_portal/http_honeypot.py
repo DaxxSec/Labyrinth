@@ -153,6 +153,46 @@ def _log_http_event(src_ip: str, method: str, path: str, status: int):
         f.write(json.dumps(event) + "\n")
 
 
+BAIT_DIR = "/var/labyrinth/bait/web"
+
+
+def _serve_bait(path: str) -> str | None:
+    """Check for a dynamic bait file matching the request path. Returns content or None."""
+    if not os.path.isdir(BAIT_DIR):
+        return None
+    # Normalize: /robots.txt → robots.txt, /.env → .env
+    rel = path.lstrip("/")
+    if not rel:
+        return None
+    candidate = os.path.join(BAIT_DIR, rel)
+    # Prevent directory traversal
+    if not os.path.realpath(candidate).startswith(os.path.realpath(BAIT_DIR)):
+        return None
+    if os.path.isfile(candidate):
+        try:
+            with open(candidate) as f:
+                return f.read()
+        except Exception:
+            return None
+    return None
+
+
+def _guess_content_type(path: str) -> str:
+    """Return a plausible content type for a bait file path."""
+    p = path.lower()
+    if p.endswith(".json"):
+        return "application/json"
+    if p.endswith(".html") or p.endswith(".htm"):
+        return "text/html"
+    if p.endswith(".csv"):
+        return "text/csv"
+    if p.endswith(".yml") or p.endswith(".yaml"):
+        return "text/yaml"
+    if p.endswith(".xml"):
+        return "application/xml"
+    return "text/plain"
+
+
 class HoneypotHandler(BaseHTTPRequestHandler):
     """HTTP portal trap request handler."""
 
@@ -166,6 +206,14 @@ class HoneypotHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         client_ip = self._get_client_ip()
+
+        # Dynamic bait files take priority — planted by `labyrinth bait drop`
+        bait_content = _serve_bait(path)
+        if bait_content is not None:
+            content_type = _guess_content_type(path)
+            self._respond(200, content_type, bait_content)
+            _log_http_event(client_ip, "GET", path, 200)
+            return
 
         if path == "/" or path == "/login":
             self._respond(200, "text/html", LOGIN_PAGE)
