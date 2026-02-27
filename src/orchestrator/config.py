@@ -43,6 +43,12 @@ class Layer4Config:
 
 
 @dataclass
+class Layer0Config:
+    fail_mode: str = "closed"  # closed = refuse to start, open = warn only
+    validate_on_startup: bool = True
+
+
+@dataclass
 class RetentionConfig:
     credentials_days: int = 7
     fingerprints_days: int = 90
@@ -57,6 +63,7 @@ class SiemConfig:
 
 @dataclass
 class LabyrinthConfig:
+    layer0: Layer0Config = field(default_factory=Layer0Config)
     layer1: Layer1Config = field(default_factory=Layer1Config)
     layer2: Layer2Config = field(default_factory=Layer2Config)
     layer3: Layer3Config = field(default_factory=Layer3Config)
@@ -82,6 +89,14 @@ class LabyrinthConfig:
 
         with open(path) as f:
             raw = yaml.safe_load(f) or {}
+
+        # Layer 0
+        l0 = raw.get("layer0", {})
+        proxy_cfg = l0.get("proxy", {})
+        config.layer0.fail_mode = proxy_cfg.get("fail_mode", config.layer0.fail_mode)
+        config.layer0.validate_on_startup = proxy_cfg.get(
+            "validate_scope_on_startup", config.layer0.validate_on_startup
+        )
 
         # Layer 1
         l1 = raw.get("layer1", {})

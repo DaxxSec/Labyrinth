@@ -23,6 +23,10 @@ from orchestrator.layer_controllers import (
     BlindfoldController,
     PuppeteerController,
 )
+from layer4_puppeteer.cert_injector import inject_ca_cert
+from layer0_foundation.bedrock import BedrockValidator
+from orchestrator.siem import SiemClient
+from orchestrator.retention import RetentionManager
 
 # Use the session logger from layer1 for event logging
 import sys
@@ -31,6 +35,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = logging.getLogger("labyrinth.orchestrator")
+
+# Module-level SIEM client, set during LabyrinthOrchestrator.__init__
+_siem_client: SiemClient = None
 
 
 def _log_forensic_event(session_id: str, layer: int, event_type: str, data: dict = None):
@@ -53,6 +60,10 @@ def _log_forensic_event(session_id: str, layer: int, event_type: str, data: dict
     with open(filepath, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
+    # Push to SIEM if configured
+    if _siem_client is not None:
+        _siem_client.push_event(entry)
+
     return entry
 
 
@@ -70,8 +81,15 @@ class LabyrinthOrchestrator:
     """
 
     def __init__(self, config: LabyrinthConfig):
+        global _siem_client
+
         self.config = config
         self._running = False
+
+        # SIEM client
+        if config.siem.enabled:
+            _siem_client = SiemClient(config.siem)
+            logger.info(f"SIEM integration enabled: {config.siem.endpoint}")
 
         # Docker client
         try:
@@ -108,11 +126,28 @@ class LabyrinthOrchestrator:
         self._running = True
         logger.info("Orchestrator entering main loop")
 
+        # L0 BEDROCK: Validate runtime environment
+        if self.config.layer0.validate_on_startup and self.docker_client:
+            ok, errors = BedrockValidator.validate(self.docker_client, self.config)
+            if not ok:
+                for err in errors:
+                    logger.error(f"L0 BEDROCK: {err}")
+                if self.config.layer0.fail_mode == "closed":
+                    logger.critical("L0 BEDROCK: Validation failed (fail_mode=closed), refusing to start")
+                    return
+                else:
+                    logger.warning("L0 BEDROCK: Validation failed (fail_mode=open), continuing with warnings")
+            else:
+                logger.info("L0 BEDROCK: All runtime checks passed")
+
         # Ensure session template image exists
         self.container_mgr.ensure_template_image()
 
         # Start filesystem watcher
         self.watcher.start()
+
+        # Track last retention cleanup
+        last_retention_run = 0
 
         # Main loop: periodic cleanup + keepalive
         while self._running:
@@ -122,6 +157,14 @@ class LabyrinthOrchestrator:
                 for sid in expired:
                     logger.info(f"Session {sid} expired, cleaning up")
                     self.container_mgr.cleanup_session(sid)
+
+                # Forensic data retention (every hour)
+                now = time.time()
+                if now - last_retention_run >= 3600:
+                    RetentionManager.cleanup(
+                        self.config.forensics_dir, self.config.retention
+                    )
+                    last_retention_run = now
 
                 time.sleep(2)
             except Exception as e:
@@ -213,6 +256,11 @@ class LabyrinthOrchestrator:
             # L4: Register IP → session mapping for proxy correlation
             self.l4.register_session_ip(container_ip, session.session_id)
 
+            # L4: Inject mitmproxy CA cert for transparent HTTPS interception
+            cert_ok = inject_ca_cert(self.docker_client, container_id)
+            if not cert_ok:
+                logger.warning(f"Session {session.session_id}: CA cert injection failed")
+
             _log_forensic_event(session.session_id, 1, "container_spawned", {
                 "container_id": container_id,
                 "container_ip": container_ip,
@@ -280,6 +328,9 @@ class LabyrinthOrchestrator:
 
             # Update L4 mapping
             self.l4.register_session_ip(container_ip, session.session_id)
+
+            # L4: Inject CA cert into new container
+            inject_ca_cert(self.docker_client, container_id)
 
             _log_forensic_event(session_id, 2, "depth_increase", {
                 "new_depth": session.depth,
