@@ -53,15 +53,33 @@ func RunPreflight() error {
 		}
 	}
 
-	if portsBlocked && labyrinthRunning() {
-		fmt.Printf("  %s[!]%s Existing LABYRINTH deployment detected on required ports — tearing down...\n", yellow, reset)
-		cleanupLabyrinthContainers()
-		time.Sleep(2 * time.Second)
-		fmt.Printf("  %s[+]%s Previous deployment stopped\n", green, reset)
+	orbstack := isOrbStack()
+	if orbstack {
+		fmt.Printf("  %s[+]%s OrbStack detected\n", green, reset)
+	}
+
+	if portsBlocked {
+		if labyrinthRunning() {
+			fmt.Printf("  %s[!]%s Existing LABYRINTH deployment detected — tearing down...\n", yellow, reset)
+			cleanupLabyrinthContainers()
+			time.Sleep(2 * time.Second)
+			fmt.Printf("  %s[+]%s Previous deployment stopped\n", green, reset)
+		} else {
+			// No containers but ports blocked — clean stale state
+			fmt.Printf("  %s[!]%s Ports blocked with no LABYRINTH containers — cleaning stale Docker state...\n", yellow, reset)
+			cleanupStaleDockerState()
+			time.Sleep(2 * time.Second)
+		}
 	}
 
 	for _, port := range requiredPorts {
 		if !PortAvailable(port) {
+			if orbstack && !labyrinthRunning() {
+				// OrbStack holds stale port forwarding after containers are removed.
+				// Docker Compose will reclaim these ports on startup, so warn and proceed.
+				fmt.Printf("  %s[!]%s Port %d held by OrbStack (stale) — will be reclaimed on deploy\n", yellow, reset, port)
+				continue
+			}
 			return fmt.Errorf("Port %d is already in use by another process. Free it and try again", port)
 		}
 		fmt.Printf("  %s[+]%s Port %d is available\n", green, reset, port)
@@ -126,6 +144,19 @@ func PortAvailable(port int) bool {
 	return true
 }
 
+// isOrbStack returns true if the Docker runtime is OrbStack.
+func isOrbStack() bool {
+	out, err := exec.Command("docker", "context", "inspect", "--format", "{{.Name}}").Output()
+	if err == nil && strings.Contains(strings.ToLower(strings.TrimSpace(string(out))), "orbstack") {
+		return true
+	}
+	// Fallback: check if orbctl exists and is running
+	if err := exec.Command("orbctl", "status").Run(); err == nil {
+		return true
+	}
+	return false
+}
+
 // labyrinthRunning checks if any containers with the labyrinth project label exist.
 func labyrinthRunning() bool {
 	out, err := exec.Command("docker", "ps", "-a", "--filter", "label=project=labyrinth", "-q").Output()
@@ -133,6 +164,34 @@ func labyrinthRunning() bool {
 		return false
 	}
 	return len(strings.TrimSpace(string(out))) > 0
+}
+
+// cleanupStaleDockerState handles the case where ports are blocked but no labyrinth
+// containers exist — typically caused by stale Docker/OrbStack port forwarding from
+// networks or stopped containers that weren't fully cleaned up.
+func cleanupStaleDockerState() {
+	// Remove any labyrinth networks (releases OrbStack/Docker port forwarding)
+	netOut, err := exec.Command("docker", "network", "ls", "--filter", "label=project=labyrinth", "-q").Output()
+	if err == nil && len(strings.TrimSpace(string(netOut))) > 0 {
+		netIDs := strings.Fields(strings.TrimSpace(string(netOut)))
+		for _, id := range netIDs {
+			exec.Command("docker", "network", "rm", id).Run()
+		}
+	}
+
+	// Also prune any networks with "labyrinth" in the name (Compose-prefixed)
+	allNets, err := exec.Command("docker", "network", "ls", "--format", "{{.ID}}\t{{.Name}}").Output()
+	if err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(allNets)), "\n") {
+			parts := strings.SplitN(line, "\t", 2)
+			if len(parts) == 2 && strings.Contains(parts[1], "labyrinth") {
+				exec.Command("docker", "network", "rm", parts[0]).Run()
+			}
+		}
+	}
+
+	// Remove any stopped labyrinth containers that might be lingering
+	exec.Command("docker", "container", "prune", "-f", "--filter", "label=project=labyrinth").Run()
 }
 
 // cleanupLabyrinthContainers stops and removes all labyrinth-labeled containers and their networks.

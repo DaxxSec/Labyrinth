@@ -179,11 +179,56 @@ else
     esac
 fi
 
-# Check Docker (warn only — not required for build)
+# Check Docker runtime
 if has docker; then
-    info "Docker found"
+    # Detect which runtime
+    docker_context=$(docker context inspect --format '{{.Name}}' 2>/dev/null || echo "default")
+    if echo "$docker_context" | grep -qi orbstack; then
+        info "Docker found (OrbStack)"
+    elif has orbctl; then
+        info "Docker found (OrbStack)"
+    else
+        info "Docker found (Docker Desktop)"
+    fi
 else
-    warn "Docker not found — needed for deploying environments, not for building"
+    warn "Docker not found — required for deploying environments"
+    echo ""
+    echo -e "  ${BOLD}A Docker runtime is required to deploy LABYRINTH.${NC}"
+    echo ""
+    echo -e "  ${BOLD}1)${NC} OrbStack ${DIM}(Recommended for macOS — fast, lightweight)${NC}"
+    echo -e "  ${BOLD}2)${NC} Docker Desktop"
+    echo -e "  ${BOLD}3)${NC} Skip — I'll install it myself"
+    echo ""
+    read -rp "  Choose [1/2/3]: " docker_choice
+    case "${docker_choice}" in
+        1)
+            section "Installing OrbStack"
+            if has brew; then
+                info "Installing via Homebrew..."
+                brew install --cask orbstack
+                info "OrbStack installed — open it once to complete setup"
+                echo -e "  ${DIM}Run: open -a OrbStack${NC}"
+            else
+                info "Opening OrbStack download page..."
+                open "https://orbstack.dev/download" 2>/dev/null || echo -e "  ${DIM}Download from: https://orbstack.dev/download${NC}"
+            fi
+            ;;
+        2)
+            section "Installing Docker Desktop"
+            if has brew; then
+                info "Installing via Homebrew..."
+                brew install --cask docker
+                info "Docker Desktop installed — open it once to complete setup"
+                echo -e "  ${DIM}Run: open -a Docker${NC}"
+            else
+                info "Opening Docker Desktop download page..."
+                open "https://www.docker.com/products/docker-desktop/" 2>/dev/null || echo -e "  ${DIM}Download from: https://www.docker.com/products/docker-desktop/${NC}"
+            fi
+            ;;
+        *)
+            warn "Skipping Docker install — you'll need it before running 'labyrinth deploy'"
+            ;;
+    esac
 fi
 
 section "Building LABYRINTH CLI"
