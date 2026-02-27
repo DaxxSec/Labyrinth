@@ -137,6 +137,25 @@ echo ""
 echo -e "  ${DIM}Installer${NC}"
 echo ""
 
+# Check for existing installation
+if [ -f "${INSTALL_DIR}/labyrinth" ]; then
+    existing_version=$("${INSTALL_DIR}/labyrinth" --version 2>/dev/null || echo "unknown")
+    warn "LABYRINTH is already installed at ${INSTALL_DIR}/labyrinth (${existing_version})"
+    echo ""
+    read -rp "  Reinstall? This will delete the old binary and rebuild. [Y/n] " answer
+    case "${answer:-Y}" in
+        [Yy]|"")
+            rm -f "${INSTALL_DIR}/labyrinth"
+            info "Old binary removed"
+            ;;
+        *)
+            info "Keeping existing installation"
+            exit 0
+            ;;
+    esac
+    echo ""
+fi
+
 section "Checking Prerequisites"
 
 # Check/install Go
