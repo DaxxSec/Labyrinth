@@ -180,18 +180,14 @@ else
 fi
 
 # Check Docker runtime
-if has docker; then
-    # Detect which runtime
-    docker_context=$(docker context inspect --format '{{.Name}}' 2>/dev/null || echo "default")
-    if echo "$docker_context" | grep -qi orbstack; then
-        info "Docker found (OrbStack)"
-    elif has orbctl; then
-        info "Docker found (OrbStack)"
-    else
-        info "Docker found (Docker Desktop)"
+if has docker || has orbctl; then
+    if has orbctl; then
+        info "OrbStack found"
+    elif has docker; then
+        info "Docker found"
     fi
 else
-    warn "Docker not found — required for deploying environments"
+    warn "No Docker runtime found — required for deploying environments"
     echo ""
     echo -e "  ${BOLD}A Docker runtime is required to deploy LABYRINTH.${NC}"
     echo ""
