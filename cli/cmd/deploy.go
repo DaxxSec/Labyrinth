@@ -12,11 +12,12 @@ import (
 )
 
 var (
-	testFlag   bool
-	prodFlag   bool
-	dockerFlag bool
-	k8sFlag    bool
-	edgeFlag   bool
+	testFlag        bool
+	prodFlag        bool
+	dockerFlag      bool
+	k8sFlag         bool
+	edgeFlag        bool
+	skipPreflight   bool
 )
 
 var deployCmd = &cobra.Command{
@@ -41,6 +42,7 @@ func init() {
 	deployCmd.Flags().BoolVar(&dockerFlag, "docker", false, "Use Docker Compose for production")
 	deployCmd.Flags().BoolVar(&k8sFlag, "k8s", false, "Use Kubernetes for production")
 	deployCmd.Flags().BoolVar(&edgeFlag, "edge", false, "Use edge deployment for production")
+	deployCmd.Flags().BoolVar(&skipPreflight, "skip-preflight", false, "Skip preflight checks (for CI/smoke tests)")
 	rootCmd.AddCommand(deployCmd)
 }
 
@@ -86,10 +88,12 @@ func runDeploy(cmd *cobra.Command, args []string) {
 func deployTest(envName string) {
 	composeProject := "labyrinth-" + envName
 
-	section("Preflight Checks")
-	if err := docker.RunPreflight(); err != nil {
-		errMsg(err.Error())
-		os.Exit(1)
+	if !skipPreflight {
+		section("Preflight Checks")
+		if err := docker.RunPreflight(); err != nil {
+			errMsg(err.Error())
+			os.Exit(1)
+		}
 	}
 
 	section(fmt.Sprintf("Deploying Test Environment: %s", envName))

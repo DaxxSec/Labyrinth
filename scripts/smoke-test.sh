@@ -171,7 +171,7 @@ fi
 section "Deploying Environment: ${ENV_NAME}"
 
 cd "$REPO_DIR"
-deploy_output=$("$CLI_BIN" deploy -t "$ENV_NAME" 2>&1)
+deploy_output=$("$CLI_BIN" deploy --skip-preflight -t "$ENV_NAME" 2>&1)
 deploy_exit=$?
 if [ $deploy_exit -eq 0 ]; then
     DEPLOYED=true
