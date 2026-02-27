@@ -30,6 +30,16 @@ Autonomous AI agents are being deployed for offensive cyber operations — autom
 
 ---
 
+## Prerequisites
+
+You need **Docker** (or a compatible runtime) and optionally **Go 1.22+** to build from source.
+
+> **macOS users:** We recommend [OrbStack](https://orbstack.dev) over Docker Desktop. It's significantly faster, uses less memory, and is a drop-in replacement — all `docker` and `docker compose` commands work identically.
+>
+> ```bash
+> brew install orbstack
+> ```
+
 ## Quickstart
 
 ### Install & Deploy
@@ -37,7 +47,7 @@ Autonomous AI agents are being deployed for offensive cyber operations — autom
 ```bash
 # Clone, build, and install (installs Go if needed)
 git clone https://github.com/DaxxSec/labyrinth.git
-cd labyrinth && ./install.sh
+cd labyrinth && ./scripts/install.sh
 
 # Deploy a test environment
 labyrinth deploy -t

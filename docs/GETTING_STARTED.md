@@ -10,6 +10,16 @@
 
 > **Test mode** requires only Docker. Go is only needed if building from source.
 
+### macOS: Use OrbStack instead of Docker Desktop
+
+On macOS, we strongly recommend [OrbStack](https://orbstack.dev) as your Docker runtime. It's a drop-in replacement that's significantly faster and lighter than Docker Desktop — lower CPU/memory overhead, near-native filesystem performance, and faster container startup.
+
+```bash
+brew install orbstack
+```
+
+All `docker` and `docker compose` commands work identically. No changes to LABYRINTH configuration needed.
+
 ## Installation
 
 ### Option A: Pre-built binary
@@ -26,7 +36,7 @@ chmod +x labyrinth
 ```bash
 git clone https://github.com/DaxxSec/labyrinth.git
 cd labyrinth
-./install.sh
+./scripts/install.sh
 ```
 
 The install script will:
