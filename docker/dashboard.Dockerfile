@@ -50,7 +50,7 @@ def stats():
     return jsonify({\"active_sessions\": len(session_files), \"captured_prompts\": len(prompt_files), \"total_events\": total_events})
 
 if __name__ == \"__main__\":
-    app.run(host=\"0.0.0.0\", port=9000, debug=True)
+    app.run(host=\"0.0.0.0\", port=9000, debug=os.environ.get(\"FLASK_DEBUG\", \"0\") == \"1\")
 ''')
 
 os.makedirs('/app/dashboard/templates', exist_ok=True)

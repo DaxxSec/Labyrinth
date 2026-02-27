@@ -73,7 +73,9 @@ func teardownSingle(reg *registry.Registry, env registry.Environment) {
 		if composeFile != "" {
 			comp := docker.NewCompose(composeFile, env.ComposeProject)
 			info(fmt.Sprintf("Stopping containers for %s (project: %s)...", env.Name, env.ComposeProject))
-			comp.Down()
+			if err := comp.Down(); err != nil {
+			warn(fmt.Sprintf("docker compose down returned an error for %s: %v", env.Name, err))
+		}
 		}
 		info(fmt.Sprintf("Removing LABYRINTH images for %s...", env.Name))
 		docker.RemoveLabyrinthImages()

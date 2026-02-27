@@ -25,7 +25,7 @@ banner() {
     echo -e "  ${GREEN}███████╗██║  ██║██████╔╝   ██║   ██║  ██║██║██║ ╚████║   ██║   ██║  ██║${NC}"
     echo -e "  ${GREEN}╚══════╝╚═╝  ╚═╝╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝${NC}"
     echo ""
-    echo -e "  ${DIM}Adversarial Cognitive Honeypot Architecture${NC}"
+    echo -e "  ${DIM}Adversarial Cognitive Portal Trap Architecture${NC}"
     echo ""
 }
 
@@ -237,12 +237,12 @@ deploy_test() {
 
     echo -e "  ${GREEN}┌─────────────────────────────────────────────────┐${NC}"
     echo -e "  ${GREEN}│${NC}  Environment:      ${BOLD}${env_name}${NC}$(printf '%*s' $((21 - ${#env_name})) '')${GREEN}│${NC}"
-    echo -e "  ${GREEN}│${NC}  SSH Honeypot:     ${BOLD}localhost:2222${NC}               ${GREEN}│${NC}"
-    echo -e "  ${GREEN}│${NC}  HTTP Honeypot:    ${BOLD}localhost:8080${NC}               ${GREEN}│${NC}"
+    echo -e "  ${GREEN}│${NC}  SSH Portal Trap:  ${BOLD}localhost:2222${NC}               ${GREEN}│${NC}"
+    echo -e "  ${GREEN}│${NC}  HTTP Portal Trap: ${BOLD}localhost:8080${NC}               ${GREEN}│${NC}"
     echo -e "  ${GREEN}│${NC}  Dashboard:        ${BOLD}http://localhost:9000${NC}         ${GREEN}│${NC}"
     echo -e "  ${GREEN}└─────────────────────────────────────────────────┘${NC}"
     echo ""
-    echo -e "  Point your offensive AI agent at the honeypot."
+    echo -e "  Point your offensive AI agent at the portal trap."
     echo -e "  Watch captures in real time at the dashboard."
     echo ""
     echo -e "  ${DIM}Teardown:  ./deploy.sh --teardown ${env_name}${NC}"

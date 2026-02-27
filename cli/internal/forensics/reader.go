@@ -25,11 +25,17 @@ func (r *Reader) ReadStats() (api.Stats, error) {
 	var stats api.Stats
 
 	sessionsDir := filepath.Join(r.dir, "sessions")
-	sessionFiles, _ := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
+	sessionFiles, err := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
+	if err != nil {
+		return stats, err
+	}
 	stats.ActiveSessions = len(sessionFiles)
 
 	promptsDir := filepath.Join(r.dir, "prompts")
-	promptFiles, _ := filepath.Glob(filepath.Join(promptsDir, "*.txt"))
+	promptFiles, err := filepath.Glob(filepath.Join(promptsDir, "*.txt"))
+	if err != nil {
+		return stats, err
+	}
 	stats.CapturedPrompts = len(promptFiles)
 
 	for _, f := range sessionFiles {

@@ -3,7 +3,7 @@ LABYRINTH — Layer 1: THRESHOLD
 Session Logger
 Authors: Stephen Stewart & Claude (Anthropic)
 
-Captures all shell activity within honeypot containers and writes
+Captures all shell activity within portal trap containers and writes
 structured JSONL to the forensic data volume for dashboard display
 and SIEM export.
 

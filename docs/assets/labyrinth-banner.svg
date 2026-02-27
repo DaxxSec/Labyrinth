@@ -73,7 +73,7 @@
   <text x="400" y="72" text-anchor="middle" font-family="monospace, 'Courier New'" font-size="42" font-weight="bold" fill="url(#textglow)" filter="url(#glow)">LABYRINTH</text>
 
   <!-- Subtitle -->
-  <text x="400" y="100" text-anchor="middle" font-family="monospace, 'Courier New'" font-size="13" fill="#8b949e" letter-spacing="4">ADVERSARIAL COGNITIVE HONEYPOT</text>
+  <text x="400" y="100" text-anchor="middle" font-family="monospace, 'Courier New'" font-size="13" fill="#8b949e" letter-spacing="4">ADVERSARIAL COGNITIVE PORTAL TRAP</text>
 
   <!-- Accent line -->
   <line x1="250" y1="112" x2="550" y2="112" stroke="url(#accent)" stroke-width="1" opacity="0.5"/>

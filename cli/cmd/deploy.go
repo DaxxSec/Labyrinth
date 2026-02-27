@@ -245,7 +245,10 @@ func findComposeFile() string {
 	}
 
 	// Walk up to find repo root
-	dir, _ := os.Getwd()
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
 	for {
 		candidate := filepath.Join(dir, "docker-compose.yml")
 		if _, err := os.Stat(candidate); err == nil {

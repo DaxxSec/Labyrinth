@@ -3,6 +3,7 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -89,11 +90,13 @@ func (r *Registry) ListAll() ([]Environment, error) {
 
 		data, err := os.ReadFile(filepath.Join(r.dir, entry.Name()))
 		if err != nil {
+			log.Printf("warning: skipping env file %s: %v", entry.Name(), err)
 			continue
 		}
 
 		var env Environment
 		if err := json.Unmarshal(data, &env); err != nil {
+			log.Printf("warning: skipping malformed env file %s: %v", entry.Name(), err)
 			continue
 		}
 		envs = append(envs, env)
