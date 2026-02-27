@@ -149,6 +149,13 @@ func deployTest(envName string) {
 	fmt.Println("  Watch captures in real time at the dashboard.")
 	fmt.Println()
 	dim := "\033[2m"
+	cyan := "\033[0;36m"
+	fmt.Printf("  %sQuick-launch an attacker:%s\n", bold, reset)
+	fmt.Printf("  %s  labyrinth attacker setup%s          %sInteractive agent setup%s\n", cyan, reset, dim, reset)
+	fmt.Printf("  %s  labyrinth attacker run pentagi%s    %sLaunch PentAGI (autonomous)%s\n", cyan, reset, dim, reset)
+	fmt.Printf("  %s  labyrinth attacker run kali%s       %sLaunch a Kali shell on the network%s\n", cyan, reset, dim, reset)
+	fmt.Printf("  %s  labyrinth attacker list%s           %sSee all available agents%s\n", cyan, reset, dim, reset)
+	fmt.Println()
 	fmt.Printf("  %sTeardown:  labyrinth teardown %s%s\n", dim, envName, reset)
 	fmt.Printf("  %sStatus:    labyrinth status %s%s\n", dim, envName, reset)
 	fmt.Printf("  %sAll envs:  labyrinth list%s\n", dim, reset)
