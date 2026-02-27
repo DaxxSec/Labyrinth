@@ -126,13 +126,34 @@ class LabyrinthOrchestrator:
         self._running = True
         logger.info("Orchestrator entering main loop")
 
-        # L0 BEDROCK: Validate runtime environment
+        # Determine effective fail_mode (test mode always uses "open")
+        fail_mode = self.config.layer0.fail_mode
+        if os.environ.get("LABYRINTH_MODE", "").lower() == "test":
+            fail_mode = "open"
+            logger.info("Test mode detected — L0 BEDROCK using fail_mode=open")
+
+        # L0 BEDROCK: Validate runtime environment (with retry for startup timing)
         if self.config.layer0.validate_on_startup and self.docker_client:
-            ok, errors = BedrockValidator.validate(self.docker_client, self.config)
+            max_retries = 6
+            retry_delay = 5
+            ok = False
+            errors = []
+
+            for attempt in range(1, max_retries + 1):
+                ok, errors = BedrockValidator.validate(self.docker_client, self.config)
+                if ok:
+                    break
+                if attempt < max_retries:
+                    logger.warning(
+                        f"L0 BEDROCK: Attempt {attempt}/{max_retries} failed "
+                        f"({len(errors)} errors), retrying in {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+
             if not ok:
                 for err in errors:
                     logger.error(f"L0 BEDROCK: {err}")
-                if self.config.layer0.fail_mode == "closed":
+                if fail_mode == "closed":
                     logger.critical("L0 BEDROCK: Validation failed (fail_mode=closed), refusing to start")
                     return
                 else:

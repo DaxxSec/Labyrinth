@@ -44,8 +44,12 @@ class BedrockValidator:
             return False, errors
 
         # 2. Network exists with correct subnet
+        #    Compose may prefix the name (e.g. project_labyrinth-net)
         try:
-            networks = docker_client.networks.list(names=["labyrinth-net"])
+            networks = [
+                n for n in docker_client.networks.list()
+                if "labyrinth-net" in n.name
+            ]
             if not networks:
                 errors.append("Network 'labyrinth-net' not found")
             else:
