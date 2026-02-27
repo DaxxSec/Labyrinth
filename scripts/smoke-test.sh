@@ -116,36 +116,43 @@ if ! command -v go > /dev/null 2>&1; then
 fi
 info "Go found: $(go version | awk '{print $3}')"
 
-# Clean up any existing labyrinth containers BEFORE checking ports
-if docker ps -a --filter "label=project=labyrinth" --format '{{.Names}}' 2>/dev/null | grep -q .; then
-    warn "Existing labyrinth containers detected — tearing down"
-    COMPOSE_PROJECT_NAME="labyrinth-${ENV_NAME}" \
-        docker compose -f "${REPO_DIR}/docker-compose.yml" down -v 2>/dev/null || true
-    # Also try common compose project names from previous runs
-    for proj in labyrinth-smoke-test labyrinth-labyrinth-test; do
-        COMPOSE_PROJECT_NAME="$proj" \
-            docker compose -f "${REPO_DIR}/docker-compose.yml" down -v 2>/dev/null || true
-    done
-    # Kill any stragglers by label
-    docker ps -q --filter "label=project=labyrinth" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
-    sleep 3
-    info "Previous labyrinth containers cleaned up"
-fi
-
 # No stale registry entry
 if [ -f "${ENV_DIR}/${ENV_NAME}.json" ]; then
     warn "Stale registry entry found — removing"
     rm -f "${ENV_DIR}/${ENV_NAME}.json"
 fi
 
-# Port availability (macOS-compatible)
+# Port availability — auto-teardown existing LABYRINTH if detected
+ports_blocked=false
 for port in 2222 8080 9000; do
     if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
-        # Check if the process holding this port is Docker/labyrinth-related
+        ports_blocked=true
+        break
+    fi
+done
+
+if [ "$ports_blocked" = true ] && docker ps -a --filter "label=project=labyrinth" --format '{{.Names}}' 2>/dev/null | grep -q .; then
+    warn "Existing LABYRINTH deployment detected on required ports — tearing down..."
+    # Try compose down for known project names
+    for proj in "labyrinth-${ENV_NAME}" labyrinth-smoke-test labyrinth-labyrinth-test; do
+        COMPOSE_PROJECT_NAME="$proj" \
+            docker compose -f "${REPO_DIR}/docker-compose.yml" down -v 2>/dev/null || true
+    done
+    # Stop and remove any remaining labyrinth containers
+    docker ps -a --filter "label=project=labyrinth" -q 2>/dev/null | xargs docker stop 2>/dev/null || true
+    docker ps -a --filter "label=project=labyrinth" -q 2>/dev/null | xargs docker rm -f 2>/dev/null || true
+    # Remove labyrinth networks
+    docker network ls --filter "label=project=labyrinth" -q 2>/dev/null | xargs docker network rm 2>/dev/null || true
+    sleep 3
+    info "Previous deployment stopped"
+fi
+
+for port in 2222 8080 9000; do
+    if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
         port_pid=$(lsof -ti ":${port}" -sTCP:LISTEN 2>/dev/null || echo "")
         port_cmd=$(ps -p "${port_pid}" -o comm= 2>/dev/null || echo "unknown")
-        error "Port ${port} is still in use by '${port_cmd}' (PID ${port_pid}) after cleanup."
-        error "Free it manually and try again."
+        error "Port ${port} is already in use by '${port_cmd}' (PID ${port_pid})."
+        error "Free it and try again."
         exit 1
     fi
     info "Port ${port} is available"
