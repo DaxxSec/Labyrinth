@@ -45,11 +45,26 @@ func statusSingle(reg *registry.Registry, envName string) {
 	fmt.Printf("  %sType:%s     %s\n", bold, reset, env.Type)
 	fmt.Printf("  %sMode:%s     %s\n", bold, reset, env.Mode)
 	fmt.Printf("  %sCreated:%s  %s\n", bold, reset, env.Created)
+
+	// Show ports for production deployments
+	if env.Ports.SSH != 0 {
+		fmt.Printf("  %sPorts:%s    SSH=%d  HTTP=%d  Dashboard=%d\n", bold, reset, env.Ports.SSH, env.Ports.HTTP, env.Ports.Dashboard)
+	}
+	if env.Subnet != "" {
+		fmt.Printf("  %sSubnet:%s   %s\n", bold, reset, env.Subnet)
+	}
+	if env.DashboardURL != "" {
+		fmt.Printf("  %sDashboard:%s %s\n", bold, reset, env.DashboardURL)
+	}
 	fmt.Println()
 
 	switch env.Mode {
 	case "docker-compose", "docker":
-		composeFile := findComposeFile()
+		// Use stored compose file for production, fallback to findComposeFile for test
+		composeFile := env.ComposeFile
+		if composeFile == "" {
+			composeFile = findComposeFile()
+		}
 		if composeFile == "" {
 			warn("Cannot find docker-compose.yml for container status")
 			return
@@ -90,11 +105,18 @@ func statusAll(reg *registry.Registry) {
 	reset := "\033[0m"
 
 	for _, env := range envs {
-		fmt.Printf("  %s%s%s  %s(%s/%s, created %s)%s\n", bold, env.Name, reset, dim, env.Type, env.Mode, env.Created, reset)
+		typeBadge := env.Type
+		if env.Ports.SSH != 0 {
+			typeBadge = fmt.Sprintf("%s, ports %d/%d/%d", env.Type, env.Ports.SSH, env.Ports.HTTP, env.Ports.Dashboard)
+		}
+		fmt.Printf("  %s%s%s  %s(%s/%s, created %s)%s\n", bold, env.Name, reset, dim, typeBadge, env.Mode, env.Created, reset)
 
 		switch env.Mode {
 		case "docker-compose", "docker":
-			composeFile := findComposeFile()
+			composeFile := env.ComposeFile
+			if composeFile == "" {
+				composeFile = findComposeFile()
+			}
 			if composeFile == "" {
 				fmt.Printf("    %sNo containers running%s\n", yellow, reset)
 				continue

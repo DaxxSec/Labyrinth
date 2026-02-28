@@ -134,6 +134,44 @@ func pythonVersion() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// RunPreflightForPorts runs the same preflight checks as RunPreflight but
+// with custom port numbers (for production deployments with dynamic ports).
+func RunPreflightForPorts(ports PortSet) error {
+	green := "\033[0;32m"
+	reset := "\033[0m"
+
+	// Docker binary
+	version, err := dockerVersion()
+	if err != nil {
+		return fmt.Errorf("Docker not found. Install Docker 20.10+ and try again")
+	}
+	fmt.Printf("  %s[+]%s Docker found: v%s\n", green, reset, version)
+
+	// Docker daemon
+	if err := dockerDaemonRunning(); err != nil {
+		return fmt.Errorf("Docker daemon not running. Start Docker and try again")
+	}
+	fmt.Printf("  %s[+]%s Docker daemon is running\n", green, reset)
+
+	// Docker Compose
+	if err := composeAvailable(); err != nil {
+		return fmt.Errorf("Docker Compose not found")
+	}
+	fmt.Printf("  %s[+]%s Docker Compose found\n", green, reset)
+
+	// Port availability for the assigned ports
+	customPorts := []int{ports.SSH, ports.HTTP, ports.Dashboard}
+	for _, port := range customPorts {
+		if !PortAvailable(port) {
+			return fmt.Errorf("Port %d is already in use. Free it and try again", port)
+		}
+		fmt.Printf("  %s[+]%s Port %d is available\n", green, reset, port)
+	}
+
+	fmt.Printf("  %s[+]%s All preflight checks passed\n", green, reset)
+	return nil
+}
+
 // PortAvailable checks if a TCP port is free to bind.
 func PortAvailable(port int) bool {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

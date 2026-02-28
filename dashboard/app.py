@@ -9,6 +9,9 @@ import json, os, glob, urllib.request
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
 
+LABYRINTH_ENV_NAME = os.environ.get("LABYRINTH_ENV_NAME", "default")
+LABYRINTH_ENV_TYPE = os.environ.get("LABYRINTH_ENV_TYPE", "test")
+
 DASHBOARD_HTML = open("/app/dashboard/templates/index.html").read()
 
 
@@ -34,6 +37,11 @@ def _read_jsonl(path, limit=0):
 @app.route("/")
 def index():
     return render_template_string(DASHBOARD_HTML)
+
+
+@app.route("/api/identity")
+def identity():
+    return jsonify({"name": LABYRINTH_ENV_NAME, "type": LABYRINTH_ENV_TYPE})
 
 
 @app.route("/api/sessions")

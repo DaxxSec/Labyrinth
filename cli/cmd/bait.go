@@ -406,18 +406,12 @@ func plantWebBait(manifest BaitManifest) []string {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	sshTarget := "labyrinth-ssh"
-	httpTarget := "labyrinth-http"
-	if !networkAvailable() {
-		sshTarget = "localhost"
-		httpTarget = "localhost"
-	}
-	_ = httpTarget
-
-	sshPort := "22"
-	if sshTarget == "localhost" {
-		sshPort = "2222"
-	}
+	// Use host.docker.internal with host-mapped ports so bait works from
+	// any Docker container (including dynamically spawned ones like PentAGI
+	// terminals that aren't on the LABYRINTH network).
+	sshTarget := "host.docker.internal"
+	httpTarget := "host.docker.internal"
+	sshPort := "2222"
 
 	u1 := manifest.Users[0]
 	u2 := manifest.Users[1]
@@ -529,7 +523,7 @@ func plantWebBait(manifest BaitManifest) []string {
 			"<h1>%s — Internal Status</h1>"+
 			"<div class='section'><h3>Services</h3>"+
 			"<p>SSH Portal: <code>%s:%s</code> (active)</p>"+
-			"<p>HTTP App: <code>%s:80</code> (active)</p>"+
+			"<p>HTTP App: <code>%s:8080</code> (active)</p>"+
 			"<p>Database: <code>db-master.%s:5432</code> (active)</p></div>"+
 			"<div class='section'><h3>Service Accounts</h3>"+
 			"<p>SSH: <code>%s</code> / <code>%s</code></p>"+

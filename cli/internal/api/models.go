@@ -15,9 +15,10 @@ type Stats struct {
 
 // SessionEntry matches the /api/sessions response entries.
 type SessionEntry struct {
-	File   string `json:"file"`
-	Events int    `json:"events"`
-	Last   string `json:"last"` // Last JSONL line as raw string
+	File        string `json:"file"`
+	Events      int    `json:"events"`
+	Last        string `json:"last"`                   // Last JSONL line as raw string
+	Environment string `json:"environment,omitempty"`   // Set by MultiClient for aggregated views
 }
 
 // ForensicEvent matches the JSONL schema from session_logger.py.

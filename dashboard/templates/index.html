@@ -114,7 +114,14 @@
   <div class="header">
     <h1>LABYRINTH</h1>
     <span class="status">LIVE</span>
-    <span style="color: #484f58; font-size: 12px; margin-left: auto;">Test Mode Dashboard</span>
+    <span id="mode-badge" class="badge" style="margin-left: 8px; padding: 4px 10px; font-size: 11px;">DEV</span>
+    <span id="env-name" style="color: #8b949e; font-size: 12px; margin-left: 8px;"></span>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <select id="env-selector" style="background: #0d1117; color: #c9d1d9; border: 1px solid #1a1a2e; border-radius: 4px; padding: 4px 8px; font-family: inherit; font-size: 11px; display: none;" onchange="switchEnvironment(this.value)">
+        <option value="">This Environment</option>
+      </select>
+      <span id="mode-label" style="color: #484f58; font-size: 12px;">Dashboard</span>
+    </div>
   </div>
 
   <!-- Stat cards -->
@@ -218,13 +225,14 @@
 
     async function refresh() {
       try {
+        const base = apiBase || '';
         const [stats, events, auth, sessions, layers, containers] = await Promise.all([
-          fetch("/api/stats").then(r => r.json()),
-          fetch("/api/events?limit=100").then(r => r.json()),
-          fetch("/api/auth?limit=30").then(r => r.json()),
-          fetch("/api/sessions").then(r => r.json()),
-          fetch("/api/layers").then(r => r.json()),
-          fetch("/api/containers").then(r => r.json()).catch(() => ({infrastructure: [], sessions: []})),
+          fetch(base + "/api/stats").then(r => r.json()),
+          fetch(base + "/api/events?limit=100").then(r => r.json()),
+          fetch(base + "/api/auth?limit=30").then(r => r.json()),
+          fetch(base + "/api/sessions").then(r => r.json()),
+          fetch(base + "/api/layers").then(r => r.json()),
+          fetch(base + "/api/containers").then(r => r.json()).catch(() => ({infrastructure: [], sessions: []})),
         ]);
 
         // Stats
@@ -327,7 +335,7 @@
 
     async function openSession(sessionId) {
       try {
-        const resp = await fetch("/api/sessions/" + encodeURIComponent(sessionId));
+        const resp = await fetch((apiBase || '') + "/api/sessions/" + encodeURIComponent(sessionId));
         const data = await resp.json();
         if (data.error) return;
 
@@ -381,6 +389,71 @@
       if (row && row.dataset.session) openSession(row.dataset.session);
     });
 
+    let apiBase = '';  // empty = same origin (default)
+
+    // Fetch identity and set mode badge
+    async function loadIdentity() {
+      try {
+        const resp = await fetch((apiBase || '') + '/api/identity');
+        const data = await resp.json();
+        const badge = document.getElementById('mode-badge');
+        const envName = document.getElementById('env-name');
+        const modeLabel = document.getElementById('mode-label');
+
+        if (data.type === 'production') {
+          badge.textContent = 'PROD';
+          badge.style.background = '#ff336630';
+          badge.style.color = '#ff3366';
+        } else {
+          badge.textContent = 'DEV';
+          badge.style.background = '#00ff8820';
+          badge.style.color = '#00ff88';
+        }
+
+        if (data.name && data.name !== 'default') {
+          envName.textContent = data.name;
+          modeLabel.textContent = data.type === 'production' ? 'Production Dashboard' : 'Test Dashboard';
+        } else {
+          modeLabel.textContent = 'Test Mode Dashboard';
+        }
+      } catch(e) {
+        console.log('Identity fetch error:', e);
+      }
+    }
+
+    // Try to discover other environments from meta-dashboard
+    async function discoverEnvironments() {
+      try {
+        const resp = await fetch('http://localhost:9999/api/environments');
+        const data = await resp.json();
+        if (data.environments && data.environments.length > 1) {
+          const sel = document.getElementById('env-selector');
+          sel.style.display = 'block';
+          sel.innerHTML = '<option value="">This Environment</option>';
+          data.environments.forEach(env => {
+            const opt = document.createElement('option');
+            opt.value = env.dashboard_url || '';
+            opt.textContent = env.name + ' (' + env.type + ')';
+            sel.appendChild(opt);
+          });
+        }
+      } catch(e) {
+        // Meta-dashboard not running — single environment mode
+      }
+    }
+
+    function switchEnvironment(url) {
+      if (url) {
+        apiBase = url;
+      } else {
+        apiBase = '';
+      }
+      loadIdentity();
+      refresh();
+    }
+
+    loadIdentity();
+    discoverEnvironments();
     refresh();
     setInterval(refresh, 3000);
   </script>

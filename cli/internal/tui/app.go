@@ -60,6 +60,14 @@ type App struct {
 	prevAuthCount    int
 	prevL3Count      int
 	prevL4Count      int
+
+	// Environment switching
+	selectedEnv      int               // index into environments (-1 for All)
+	activeEnvName    string            // current env name ("" = aggregated/All)
+	dashboardURLs    map[string]string // envName → dashboard URL
+	envSelectorOpen  bool              // whether env selector bar is visible
+	multiClient      *api.MultiClient  // for aggregated "All" view
+	targetEnvName    string            // --env flag target
 }
 
 // Messages
@@ -99,14 +107,21 @@ type promptsMsg struct {
 	err     error
 }
 
-// NewApp creates a new TUI app.
-func NewApp() *App {
-	return &App{
+// NewApp creates a new TUI app. If targetEnv is non-empty, the TUI starts
+// focused on that environment.
+func NewApp(targetEnv ...string) *App {
+	a := &App{
 		activeTab:     TabOverview,
 		apiClient:     api.NewClient(dashboardURL),
 		fileReader:    forensics.NewReader(forensicsDir),
 		layerStatuses: defaultLayerStatuses(),
+		selectedEnv:   -1,
+		dashboardURLs: make(map[string]string),
 	}
+	if len(targetEnv) > 0 && targetEnv[0] != "" {
+		a.targetEnvName = targetEnv[0]
+	}
+	return a
 }
 
 func defaultLayerStatuses() []api.LayerStatus {
@@ -130,6 +145,24 @@ func (a *App) Init() tea.Cmd {
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// If env selector is open, handle navigation
+		if a.envSelectorOpen {
+			switch msg.String() {
+			case "e", "escape":
+				a.envSelectorOpen = false
+				return a, nil
+			case "left", "h":
+				a.prevEnv()
+				return a, tea.Batch(fetchDataCmd(a.apiClient, a.fileReader), a.tabFetchCmd())
+			case "right", "l":
+				a.nextEnv()
+				return a, tea.Batch(fetchDataCmd(a.apiClient, a.fileReader), a.tabFetchCmd())
+			case "enter":
+				a.envSelectorOpen = false
+				return a, nil
+			}
+		}
+
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return a, tea.Quit
@@ -156,6 +189,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.tabFetchCmd()
 		case "r":
 			return a, tea.Batch(fetchDataCmd(a.apiClient, a.fileReader), a.tabFetchCmd())
+		case "e":
+			if len(a.environments) > 1 {
+				a.envSelectorOpen = !a.envSelectorOpen
+				return a, nil
+			}
 		case "enter":
 			if a.activeTab == TabSessions && a.sessionView == 0 && len(a.sessions) > 0 {
 				a.sessionView = 1
@@ -237,6 +275,23 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case envsMsg:
 		if msg.err == nil {
 			a.environments = msg.envs
+			a.populateDashboardURLs()
+
+			// Handle --env flag targeting
+			if a.targetEnvName != "" {
+				for i, env := range a.environments {
+					if env.Name == a.targetEnvName {
+						a.selectedEnv = i
+						a.switchEnvironment()
+						break
+					}
+				}
+				a.targetEnvName = "" // only apply once
+			} else if len(a.environments) == 1 {
+				// Auto-select if only one env
+				a.selectedEnv = 0
+				a.switchEnvironment()
+			}
 		}
 
 	case eventsMsg:
@@ -286,6 +341,16 @@ func (a *App) View() tea.View {
 	b.WriteString(a.renderHeader())
 	b.WriteString("\n")
 
+	// Environment selector bar (when open or multiple envs)
+	envBar := ""
+	if a.envSelectorOpen {
+		envBar = a.renderEnvSelector()
+	}
+	if envBar != "" {
+		b.WriteString(envBar)
+		b.WriteString("\n")
+	}
+
 	// Tab bar
 	b.WriteString(a.renderTabBar())
 	b.WriteString("\n")
@@ -295,7 +360,11 @@ func (a *App) View() tea.View {
 	b.WriteString("\n")
 
 	// Tab content
-	contentHeight := a.height - 6 // header + tabbar + separator + help
+	extraLines := 0
+	if envBar != "" {
+		extraLines = 1
+	}
+	contentHeight := a.height - 6 - extraLines // header + tabbar + separator + help
 	switch a.activeTab {
 	case TabOverview:
 		b.WriteString(renderOverview(a, contentHeight))
@@ -320,6 +389,7 @@ func (a *App) View() tea.View {
 
 func (a *App) renderHeader() string {
 	title := StyleTitle.Render(" LABYRINTH ")
+	badge := a.modeBadge()
 
 	sourceLabel := ""
 	switch a.dataSource {
@@ -331,12 +401,25 @@ func (a *App) renderHeader() string {
 		sourceLabel = lipgloss.NewStyle().Foreground(ColorRed).Render("[NO DATA]")
 	}
 
-	padding := a.width - lipgloss.Width(title) - lipgloss.Width(sourceLabel) - 4
+	envLabel := ""
+	if a.activeEnvName != "" {
+		envLabel = StyleSubtle.Render(fmt.Sprintf(" %s ", a.activeEnvName))
+	}
+
+	leftPart := title
+	if badge != "" {
+		leftPart = leftPart + " " + badge
+	}
+	if envLabel != "" {
+		leftPart = leftPart + " " + envLabel
+	}
+
+	padding := a.width - lipgloss.Width(leftPart) - lipgloss.Width(sourceLabel) - 4
 	if padding < 1 {
 		padding = 1
 	}
 
-	return fmt.Sprintf("┌─%s%s%s─┐", title, strings.Repeat("─", padding), sourceLabel)
+	return fmt.Sprintf("┌─%s%s%s─┐", leftPart, strings.Repeat("─", padding), sourceLabel)
 }
 
 func (a *App) renderTabBar() string {
@@ -355,6 +438,12 @@ func (a *App) renderTabBar() string {
 
 func (a *App) renderHelp() string {
 	base := "  [Tab] switch  [1-5] direct  [r] refresh  [q] quit"
+	if len(a.environments) > 1 {
+		base += "  [e] env"
+	}
+	if a.envSelectorOpen {
+		return StyleHelp.Render(base + "  [←/→] select env  [Enter/Esc] close")
+	}
 	switch a.activeTab {
 	case TabSessions:
 		if a.sessionView == 1 {
@@ -531,6 +620,74 @@ func fetchPromptsCmd(client *api.Client, reader *forensics.Reader) tea.Cmd {
 		prompts, err := reader.ReadPrompts()
 		return promptsMsg{prompts: prompts, err: err}
 	}
+}
+
+// populateDashboardURLs builds the envName → dashboardURL map from the environment list.
+func (a *App) populateDashboardURLs() {
+	for _, env := range a.environments {
+		if env.DashboardURL != "" {
+			a.dashboardURLs[env.Name] = env.DashboardURL
+		} else if env.Type == "test" {
+			a.dashboardURLs[env.Name] = dashboardURL // default test URL
+		}
+	}
+
+	// Build multi-client for "All" aggregated view
+	var urls []string
+	var names []string
+	for _, env := range a.environments {
+		if url, ok := a.dashboardURLs[env.Name]; ok {
+			urls = append(urls, url)
+			names = append(names, env.Name)
+		}
+	}
+	if len(urls) > 0 {
+		a.multiClient = api.NewMultiClient(urls, names)
+	}
+}
+
+// switchEnvironment updates the apiClient to point at the selected environment.
+func (a *App) switchEnvironment() {
+	if a.selectedEnv == -1 {
+		// "All" mode — use default client, aggregation happens via multiClient
+		a.activeEnvName = ""
+		a.apiClient = api.NewClient(dashboardURL)
+		return
+	}
+
+	if a.selectedEnv >= 0 && a.selectedEnv < len(a.environments) {
+		env := a.environments[a.selectedEnv]
+		a.activeEnvName = env.Name
+		if url, ok := a.dashboardURLs[env.Name]; ok {
+			a.apiClient = api.NewClient(url)
+		}
+	}
+}
+
+// nextEnv moves to the next environment in the selector.
+func (a *App) nextEnv() {
+	if len(a.environments) == 0 {
+		return
+	}
+	// -1 → 0 → 1 → ... → len-1 → -1
+	a.selectedEnv++
+	if a.selectedEnv >= len(a.environments) {
+		a.selectedEnv = -1
+	}
+	a.switchEnvironment()
+}
+
+// prevEnv moves to the previous environment in the selector.
+func (a *App) prevEnv() {
+	if len(a.environments) == 0 {
+		return
+	}
+	// -1 → len-1 → len-2 → ... → 0 → -1
+	a.selectedEnv--
+	if a.selectedEnv < -1 {
+		a.selectedEnv = len(a.environments) - 1
+	}
+	a.switchEnvironment()
 }
 
 func min(a, b int) int {

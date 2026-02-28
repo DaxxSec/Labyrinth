@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/DaxxSec/labyrinth/cli/internal/docker"
 	"github.com/DaxxSec/labyrinth/cli/internal/registry"
@@ -69,16 +70,30 @@ func teardownAllEnvs(reg *registry.Registry) {
 func teardownSingle(reg *registry.Registry, env registry.Environment) {
 	switch env.Mode {
 	case "docker-compose", "docker":
-		composeFile := findComposeFile()
+		// Use stored compose file for production, fallback to findComposeFile for test
+		composeFile := env.ComposeFile
+		if composeFile == "" {
+			composeFile = findComposeFile()
+		}
 		if composeFile != "" {
 			comp := docker.NewCompose(composeFile, env.ComposeProject)
 			info(fmt.Sprintf("Stopping containers for %s (project: %s)...", env.Name, env.ComposeProject))
 			if err := comp.Down(); err != nil {
-			warn(fmt.Sprintf("docker compose down returned an error for %s: %v", env.Name, err))
-		}
+				warn(fmt.Sprintf("docker compose down returned an error for %s: %v", env.Name, err))
+			}
 		}
 		info(fmt.Sprintf("Removing LABYRINTH images for %s...", env.Name))
 		docker.RemoveLabyrinthImages()
+
+		// Clean up environment directory for production deployments
+		if env.ComposeFile != "" {
+			envDir := filepath.Dir(env.ComposeFile)
+			if err := os.RemoveAll(envDir); err != nil {
+				warn(fmt.Sprintf("Failed to clean up env directory %s: %v", envDir, err))
+			} else {
+				info(fmt.Sprintf("Cleaned up %s", envDir))
+			}
+		}
 	case "k8s":
 		warn(fmt.Sprintf("K8s teardown not yet implemented (would run: kubectl delete namespace %s)", env.Namespace))
 	case "edge":

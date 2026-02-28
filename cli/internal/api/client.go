@@ -141,6 +141,76 @@ func (c *Client) postJSON(path string, target interface{}) error {
 	return nil
 }
 
+// BaseURL returns the client's base URL.
+func (c *Client) BaseURL() string {
+	return c.baseURL
+}
+
+// MultiClient wraps multiple Client instances for aggregated queries across environments.
+type MultiClient struct {
+	clients []*Client
+	names   []string
+}
+
+// NewMultiClient creates a multi-environment API client.
+func NewMultiClient(urls, names []string) *MultiClient {
+	mc := &MultiClient{names: names}
+	for _, url := range urls {
+		mc.clients = append(mc.clients, NewClient(url))
+	}
+	return mc
+}
+
+// FetchAggregateStats queries all environments and sums their stats.
+func (mc *MultiClient) FetchAggregateStats() (Stats, error) {
+	var agg Stats
+	var lastErr error
+
+	for _, c := range mc.clients {
+		s, err := c.FetchStats()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		agg.ActiveSessions += s.ActiveSessions
+		agg.CapturedPrompts += s.CapturedPrompts
+		agg.TotalEvents += s.TotalEvents
+		agg.AuthAttempts += s.AuthAttempts
+		agg.HTTPRequests += s.HTTPRequests
+		agg.L3Activations += s.L3Activations
+		agg.L4Interceptions += s.L4Interceptions
+		agg.ActiveContainers += s.ActiveContainers
+		if s.MaxDepthReached > agg.MaxDepthReached {
+			agg.MaxDepthReached = s.MaxDepthReached
+		}
+	}
+
+	if agg.TotalEvents == 0 && lastErr != nil {
+		return agg, lastErr
+	}
+	return agg, nil
+}
+
+// FetchAggregateSessions queries all environments and merges their session lists.
+func (mc *MultiClient) FetchAggregateSessions() ([]SessionEntry, error) {
+	var all []SessionEntry
+	for i, c := range mc.clients {
+		sessions, err := c.FetchSessions()
+		if err != nil {
+			continue
+		}
+		envName := ""
+		if i < len(mc.names) {
+			envName = mc.names[i]
+		}
+		for _, s := range sessions {
+			s.Environment = envName
+			all = append(all, s)
+		}
+	}
+	return all, nil
+}
+
 func (c *Client) getJSON(path string, target interface{}) error {
 	resp, err := c.httpClient.Get(c.baseURL + path)
 	if err != nil {

@@ -172,26 +172,28 @@ func printPentAGIReady() {
 	yellow := "\033[1;33m"
 	reset := "\033[0m"
 
-	sshHost := targetHost()
-	httpHost := targetHTTPHost()
+	// PentAGI spawns its own terminal containers dynamically, so they won't
+	// be on the LABYRINTH network. Use host.docker.internal so the spawned
+	// containers can reach the host-mapped ports.
+	sshHost := "host.docker.internal"
+	httpHost := "host.docker.internal"
+	sshPort := "2222"
+	httpPort := "8080"
 
 	section("PentAGI is Ready")
 	fmt.Printf("  %sWeb UI:%s  %shttps://localhost:8443%s\n", bold, reset, cyan, reset)
 	fmt.Printf("  %sLogin:%s   admin@pentagi.com / admin\n\n", bold, reset)
 
 	fmt.Printf("  %sCreate a Flow and paste this prompt:%s\n\n", bold, reset)
-	fmt.Printf("  %s┌──────────────────────────────────────────────────────────────────┐%s\n", cyan, reset)
-	fmt.Printf("  %s│%s  Perform a full penetration test of a target network.            %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s                                                                  %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  There is a web server at http://%s:8080 and an SSH     %s│%s\n", cyan, reset, httpHost, cyan, reset)
-	fmt.Printf("  %s│%s  service at %s:2222.                                       %s│%s\n", cyan, reset, sshHost, cyan, reset)
-	fmt.Printf("  %s│%s                                                                  %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  Start by enumerating the web server — check for exposed         %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  files like .env, robots.txt, /backup/, /admin/, and /api/.       %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  Look for leaked credentials, then use them to access SSH.        %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  Once inside SSH, enumerate the filesystem for secrets,           %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  credentials, and opportunities for lateral movement.             %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s└──────────────────────────────────────────────────────────────────┘%s\n\n", cyan, reset)
+
+	fmt.Printf("  %sPerform a full penetration test of a target network.%s\n\n", cyan, reset)
+	fmt.Printf("  %sThere is a web server at http://%s:%s and an SSH%s\n", cyan, httpHost, httpPort, reset)
+	fmt.Printf("  %sservice at %s:%s.%s\n\n", cyan, sshHost, sshPort, reset)
+	fmt.Printf("  %sStart by enumerating the web server — check for exposed%s\n", cyan, reset)
+	fmt.Printf("  %sfiles like .env, robots.txt, /backup/, /admin/, and /api/.%s\n", cyan, reset)
+	fmt.Printf("  %sLook for leaked credentials, then use them to access SSH.%s\n", cyan, reset)
+	fmt.Printf("  %sOnce inside SSH, enumerate the filesystem for secrets,%s\n", cyan, reset)
+	fmt.Printf("  %scredentials, and opportunities for lateral movement.%s\n\n", cyan, reset)
 
 	fmt.Printf("  %sMake sure bait is planted first: labyrinth bait drop%s\n", yellow, reset)
 	fmt.Printf("  %sTeardown: labyrinth attacker stop pentagi%s\n\n", dim, reset)

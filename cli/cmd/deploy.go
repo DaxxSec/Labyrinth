@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DaxxSec/labyrinth/cli/internal/config"
 	"github.com/DaxxSec/labyrinth/cli/internal/docker"
 	"github.com/DaxxSec/labyrinth/cli/internal/registry"
 	"github.com/spf13/cobra"
@@ -186,36 +187,173 @@ func deployTest(envName string) {
 }
 
 func deployProdDocker(envName string) {
+	composeProject := "labyrinth-" + envName
+
 	section(fmt.Sprintf("Production Deploy (Docker): %s", envName))
 
-	section("Preflight Checks")
-	if err := docker.RunPreflight(); err != nil {
-		errMsg(err.Error())
+	// Load existing environments for port/subnet allocation
+	reg := registry.New("")
+	existing, _ := reg.ListAll()
+
+	// Check for name collision
+	for _, env := range existing {
+		if env.Name == envName {
+			errMsg(fmt.Sprintf("Environment '%s' already exists. Tear it down first or choose a different name.", envName))
+			os.Exit(1)
+		}
+	}
+
+	// Allocate ports and subnet
+	info("Allocating ports and subnet...")
+	ports, err := docker.AllocatePorts(existing)
+	if err != nil {
+		errMsg(fmt.Sprintf("Port allocation failed: %v", err))
+		os.Exit(1)
+	}
+	subnet, proxyIP, err := docker.AllocateSubnet(existing)
+	if err != nil {
+		errMsg(fmt.Sprintf("Subnet allocation failed: %v", err))
+		os.Exit(1)
+	}
+	info(fmt.Sprintf("Ports: SSH=%d  HTTP=%d  Dashboard=%d", ports.SSH, ports.HTTP, ports.Dashboard))
+	info(fmt.Sprintf("Subnet: %s  Proxy: %s", subnet, proxyIP))
+
+	// Preflight with custom ports
+	if !skipPreflight {
+		section("Preflight Checks")
+		if err := docker.RunPreflightForPorts(ports); err != nil {
+			errMsg(err.Error())
+			os.Exit(1)
+		}
+	}
+
+	// Find base compose file
+	baseCompose := findComposeFile()
+	if baseCompose == "" {
+		errMsg("Cannot find docker-compose.yml")
 		os.Exit(1)
 	}
 
-	reg := registry.New("")
+	// Resolve absolute path for build context
+	buildContext, _ := filepath.Abs(filepath.Dir(baseCompose))
+
+	// Create environment directory
+	home, err := os.UserHomeDir()
+	if err != nil {
+		errMsg(fmt.Sprintf("Cannot determine home directory: %v", err))
+		os.Exit(1)
+	}
+	envDir := filepath.Join(home, ".labyrinth", "environments", envName)
+
+	// Generate compose file
+	section("Generating Configuration")
+	info("Generating production Docker Compose file...")
+	composePath, err := docker.GenerateComposeFile(docker.ComposeGenConfig{
+		EnvName:      envName,
+		Ports:        ports,
+		Subnet:       subnet,
+		ProxyIP:      proxyIP,
+		BaseCompose:  baseCompose,
+		OutputDir:    envDir,
+		BuildContext: buildContext,
+	})
+	if err != nil {
+		errMsg(fmt.Sprintf("Compose generation failed: %v", err))
+		os.Exit(1)
+	}
+	info(fmt.Sprintf("Compose file: %s", composePath))
+
+	// Generate environment config
+	exampleConfig := config.FindExampleConfig(baseCompose)
+	configPath := ""
+	if exampleConfig != "" {
+		cp, err := config.GenerateEnvConfig(exampleConfig, envDir, proxyIP, subnet)
+		if err != nil {
+			warn(fmt.Sprintf("Config generation failed (non-fatal): %v", err))
+		} else {
+			configPath = cp
+			info(fmt.Sprintf("Config file: %s", configPath))
+		}
+	}
+
+	// Build and deploy
+	section("Building & Deploying")
+	comp := docker.NewCompose(composePath, composeProject)
+
+	info("Building production container images...")
+	if err := comp.Build(); err != nil {
+		errMsg(fmt.Sprintf("Build failed: %v", err))
+		os.Exit(1)
+	}
+
+	info("Starting production LABYRINTH stack...")
+	if err := comp.Up(); err != nil {
+		if netErr, ok := err.(*docker.NetworkOverlapError); ok {
+			errMsg("Docker network subnet conflict with an existing network")
+			warn("A previous deployment left a network using the same subnet.")
+			info(fmt.Sprintf("Fix: %s", netErr.Error()))
+		} else {
+			errMsg(fmt.Sprintf("Failed to start services: %v", err))
+		}
+		os.Exit(1)
+	}
+
+	info("Waiting for services to initialize...")
+	time.Sleep(3 * time.Second)
+
+	// Register environment
+	dashboardURL := fmt.Sprintf("http://localhost:%d", ports.Dashboard)
 	env := registry.Environment{
 		Name:           envName,
 		Type:           "production",
 		Mode:           "docker",
 		Created:        time.Now().UTC().Format(time.RFC3339),
-		ComposeProject: "labyrinth-" + envName,
+		ComposeProject: composeProject,
+		Ports: registry.EnvironmentPorts{
+			SSH:       ports.SSH,
+			HTTP:      ports.HTTP,
+			Dashboard: ports.Dashboard,
+		},
+		Subnet:       subnet,
+		DashboardURL: dashboardURL,
+		ConfigPath:   configPath,
+		ComposeFile:  composePath,
 	}
 	if err := reg.Register(env); err != nil {
 		warn(fmt.Sprintf("Failed to register environment: %v", err))
 	}
 
-	warn("Production (Docker) deployment is scaffolded but not yet fully implemented.")
-	info(fmt.Sprintf("Environment '%s' registered. Full deployment coming in Option A.", envName))
-	fmt.Println()
-	dim := "\033[2m"
+	// Success output
+	section(fmt.Sprintf("LABYRINTH Production is Live  [%s]", envName))
+	bold := "\033[1m"
+	red := "\033[0;31m"
+	green := "\033[0;32m"
 	reset := "\033[0m"
-	fmt.Printf("  %sWhat this will include:%s\n", dim, reset)
-	fmt.Printf("  %s  - docker-compose.prod.yml with hardened settings%s\n", dim, reset)
-	fmt.Printf("  %s  - TLS termination and real credential management%s\n", dim, reset)
-	fmt.Printf("  %s  - Production logging and monitoring%s\n", dim, reset)
-	fmt.Printf("  %s  - Resource limits and health checks%s\n", dim, reset)
+
+	fmt.Printf("  %s┌─────────────────────────────────────────────────┐%s\n", green, reset)
+	fmt.Printf("  %s│%s  %sPROD%s  Environment:  %s%-21s%s%s│%s\n", green, reset, red, reset, bold, envName, reset, green, reset)
+	fmt.Printf("  %s│%s  SSH Portal Trap:  %slocalhost:%d%s", green, reset, bold, ports.SSH, reset)
+	pad := 31 - len(fmt.Sprintf("localhost:%d", ports.SSH))
+	fmt.Printf("%s%s│%s\n", strings.Repeat(" ", pad), green, reset)
+	fmt.Printf("  %s│%s  HTTP Portal Trap: %slocalhost:%d%s", green, reset, bold, ports.HTTP, reset)
+	pad = 31 - len(fmt.Sprintf("localhost:%d", ports.HTTP))
+	fmt.Printf("%s%s│%s\n", strings.Repeat(" ", pad), green, reset)
+	fmt.Printf("  %s│%s  Dashboard:        %s%s%s", green, reset, bold, dashboardURL, reset)
+	pad = 31 - len(dashboardURL)
+	if pad < 1 {
+		pad = 1
+	}
+	fmt.Printf("%s%s│%s\n", strings.Repeat(" ", pad), green, reset)
+	fmt.Printf("  %s│%s  Subnet:           %s%-31s%s%s│%s\n", green, reset, bold, subnet, reset, green, reset)
+	fmt.Printf("  %s└─────────────────────────────────────────────────┘%s\n", green, reset)
+	fmt.Println()
+
+	dim := "\033[2m"
+	cyan := "\033[0;36m"
+	fmt.Printf("  %sTeardown:  labyrinth teardown %s%s\n", dim, envName, reset)
+	fmt.Printf("  %sStatus:    labyrinth status %s%s\n", dim, envName, reset)
+	fmt.Printf("  %sDashboard: %s%s%s\n", dim, cyan, dashboardURL, reset)
+	fmt.Printf("  %sAll envs:  labyrinth list%s\n", dim, reset)
 	fmt.Println()
 }
 
