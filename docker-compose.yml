@@ -53,6 +53,8 @@ services:
     volumes:
       - forensic-data:/var/labyrinth/forensics
       - /var/run/docker.sock:/var/run/docker.sock
+    expose:
+      - "8888"
     environment:
       - LABYRINTH_MODE=test
       - LABYRINTH_LOG_LEVEL=DEBUG
@@ -107,7 +109,6 @@ services:
       - labyrinth-net
     volumes:
       - forensic-data:/var/labyrinth/forensics:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - DASHBOARD_PORT=9000
     depends_on:

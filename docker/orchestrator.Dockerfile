@@ -7,7 +7,7 @@ FROM python:3.11-slim
 LABEL project="labyrinth"
 LABEL layer="orchestrator"
 
-RUN pip install --no-cache-dir pyyaml docker watchdog
+RUN pip install --no-cache-dir pyyaml docker watchdog flask
 
 RUN mkdir -p /var/labyrinth/forensics/sessions /app
 

@@ -27,6 +27,7 @@ from layer4_puppeteer.cert_injector import inject_ca_cert
 from layer0_foundation.bedrock import BedrockValidator
 from orchestrator.siem import SiemClient
 from orchestrator.retention import RetentionManager
+from orchestrator import health_api
 
 # Use the session logger from layer1 for event logging
 import sys
@@ -163,6 +164,9 @@ class LabyrinthOrchestrator:
 
         # Ensure session template image exists
         self.container_mgr.ensure_template_image()
+
+        # Start health API for dashboard container queries
+        health_api.start(self.docker_client)
 
         # Start filesystem watcher
         self.watcher.start()

@@ -4,7 +4,7 @@ Authors: Stephen Stewart & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request
-import json, os, glob, http.client, socket
+import json, os, glob, urllib.request
 
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
@@ -91,8 +91,9 @@ def stats():
     # Active containers count
     active_containers = 0
     try:
-        containers = _query_docker_containers()
-        active_containers = sum(1 for c in containers if c.get("State") == "running")
+        data = _query_orchestrator_containers()
+        all_c = data.get("infrastructure", []) + data.get("sessions", [])
+        active_containers = sum(1 for c in all_c if c.get("state") == "running")
     except Exception:
         pass
 
@@ -219,71 +220,21 @@ def session_detail(session_id):
     })
 
 
-def _query_docker_containers():
-    """Query Docker Engine API via unix socket. Returns list of container dicts."""
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.connect("/var/run/docker.sock")
-    sock.settimeout(5)
-
-    request_line = "GET /containers/json?all=true&filters=%7B%22label%22%3A%5B%22project%3Dlabyrinth%22%5D%7D HTTP/1.0\r\nHost: localhost\r\n\r\n"
-    sock.sendall(request_line.encode())
-
-    response = b""
-    while True:
-        chunk = sock.recv(4096)
-        if not chunk:
-            break
-        response += chunk
-    sock.close()
-
-    # Parse HTTP response — skip headers
-    parts = response.split(b"\r\n\r\n", 1)
-    if len(parts) < 2:
-        return []
-    body = parts[1].decode()
-    return json.loads(body)
+def _query_orchestrator_containers():
+    """Query container data from the orchestrator's health API."""
+    url = "http://labyrinth-orchestrator:8888/api/containers"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        return json.loads(resp.read().decode())
 
 
 @app.route("/api/containers")
 def containers():
     try:
-        raw = _query_docker_containers()
+        data = _query_orchestrator_containers()
+        return jsonify(data)
     except Exception:
         return jsonify({"infrastructure": [], "sessions": []})
-
-    infrastructure = []
-    session_containers = []
-
-    for c in raw:
-        labels = c.get("Labels", {})
-        layer = labels.get("layer", "")
-        ports_raw = c.get("Ports", [])
-        ports = []
-        for p in ports_raw:
-            pub = p.get("PublicPort")
-            priv = p.get("PrivatePort")
-            if pub and priv:
-                ports.append(f"{pub}:{priv}")
-            elif priv:
-                ports.append(str(priv))
-
-        names = c.get("Names", [])
-        name = names[0].lstrip("/") if names else ""
-
-        entry = {
-            "name": name,
-            "status": c.get("Status", ""),
-            "state": c.get("State", ""),
-            "ports": ", ".join(ports),
-            "layer": layer,
-        }
-
-        if layer == "session":
-            session_containers.append(entry)
-        else:
-            infrastructure.append(entry)
-
-    return jsonify({"infrastructure": infrastructure, "sessions": session_containers})
 
 
 @app.route("/api/layers")
@@ -299,21 +250,22 @@ def layers():
 
     # Check container status for L0/L1
     try:
-        raw = _query_docker_containers()
-        running = [c for c in raw if c.get("State") == "running"]
-        infra_running = [c for c in running if c.get("Labels", {}).get("layer", "") not in ("session", "")]
+        data = _query_orchestrator_containers()
+        all_c = data.get("infrastructure", []) + data.get("sessions", [])
+        running = [c for c in all_c if c.get("state") == "running"]
+        infra_running = [c for c in running if c.get("layer", "") not in ("session", "")]
         if infra_running:
             layer_statuses[0]["status"] = "active"
             layer_statuses[0]["detail"] = f"{len(infra_running)} infrastructure containers"
 
         portal_names = {"labyrinth-ssh", "labyrinth-http"}
-        portal_running = [c for c in running if any(n.lstrip("/") in portal_names for n in c.get("Names", []))]
+        portal_running = [c for c in running if c.get("name", "") in portal_names]
         if portal_running:
             layer_statuses[1]["status"] = "active"
             layer_statuses[1]["detail"] = f"{len(portal_running)} portal services"
 
         # Check for proxy
-        proxy_running = [c for c in running if any("proxy" in n for n in c.get("Names", []))]
+        proxy_running = [c for c in running if "proxy" in c.get("name", "")]
         if proxy_running:
             layer_statuses[4]["status"] = "active"
             layer_statuses[4]["detail"] = "MITM proxy running"

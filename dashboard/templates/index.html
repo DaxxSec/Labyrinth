@@ -199,7 +199,7 @@
     function escHtml(s) {
       const d = document.createElement('div');
       d.textContent = s;
-      return d.innerHTML;
+      return d.innerHTML.replace(/'/g, '&#39;');
     }
 
     function formatData(data) {
@@ -283,7 +283,7 @@
           sessEl.innerHTML = sessions.map(s => {
             const name = escHtml(s.file);
             const sid = s.file.replace('.jsonl', '');
-            return '<div class="session-row" onclick="openSession(\'' + escHtml(sid) + '\')">' +
+            return '<div class="session-row" data-session="' + escHtml(sid) + '">' +
               '<span class="name">' + name + '</span>' +
               '<div class="meta">' +
               '<span class="count">' + s.events + ' events</span>' +
@@ -375,6 +375,11 @@
     }
 
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+    document.getElementById("session-list").addEventListener("click", function(e) {
+      const row = e.target.closest(".session-row");
+      if (row && row.dataset.session) openSession(row.dataset.session);
+    });
 
     refresh();
     setInterval(refresh, 3000);
