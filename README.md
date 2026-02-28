@@ -68,7 +68,7 @@ labyrinth bait drop                     # Plant randomized bait for agents to di
 labyrinth attacker setup                # Pick and configure an attacker agent
 ```
 
-The deploy command prompts you to drop bait automatically. Bait generates a unique randomized identity (company, users, passwords) and plants discoverable credentials on the portal trap services — giving attacker agents breadcrumbs to find their way in.
+The deploy command prompts you to drop bait automatically. Bait generates a unique randomized identity (company, users, passwords) and plants discoverable credentials on the portal trap services — giving attacker agents breadcrumbs to find their way in. Every deployment gets a unique identity with no static signatures, preventing fingerprinting by scanners or adversarial AI.
 
 Choose from **PentAGI**, **PentestAgent**, **Strix**, or bring your own tool. All agents run in isolated Docker containers on the LABYRINTH network — nothing touches your host.
 
@@ -137,6 +137,7 @@ See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
 - [x] JSONL forensic event capture & export
 - [x] Build-from-source installer (`install.sh`)
 - [x] Structured documentation (docs/)
+- [x] Anti-fingerprinting (randomized identities per deployment — no static signatures)
 - [x] Layer 1 container orchestration (PAM hooks, bait watchers, HTTP portal trap)
 - [x] Layer 2 contradiction seeding engine (13 contradictions, adaptive density)
 - [x] Layer 3 encoding corruption payloads (enhanced: urandom, TERM, recovery traps)
@@ -163,7 +164,11 @@ We welcome contributions from the defensive security community.
 
 ## Disclaimer
 
-This project is intended for **defensive security research only**. The techniques described are designed to be deployed within controlled portal trap environments that the operator owns and controls. Always ensure compliance with applicable laws and organizational policies.
+> [!IMPORTANT]
+> **LABYRINTH does not phone home.** All forensic data — captured credentials, session logs, HTTP access events — is stored **locally on your machine** in Docker volumes and `~/.labyrinth/`. Nothing is transmitted to any remote server, cloud service, or third party. There is no telemetry, no analytics, no remote collection of any kind. You own your data, period.
+
+> [!NOTE]
+> This project is intended for **defensive security research only**. The techniques described are designed to be deployed within controlled portal trap environments that the operator owns and controls. Always ensure compliance with applicable laws and organizational policies.
 
 ## License
 

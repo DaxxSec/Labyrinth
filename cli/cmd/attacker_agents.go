@@ -62,7 +62,7 @@ func setupPentAGI() {
 				lines[i] = line[:idx]
 			}
 		}
-		os.WriteFile(envDst, []byte(strings.Join(lines, "\n")), 0644)
+		os.WriteFile(envDst, []byte(strings.Join(lines, "\n")), 0600)
 	}
 
 	info("Starting PentAGI...")
@@ -80,6 +80,7 @@ func setupPentAGI() {
 		InstalledAt: nowISO(),
 	})
 
+	bridgePentAGI(composeDst)
 	printPentAGIReady()
 }
 
@@ -99,6 +100,7 @@ func launchPentAGI() {
 		os.Exit(1)
 	}
 
+	bridgePentAGI(composePath)
 	printPentAGIReady()
 }
 
@@ -126,6 +128,40 @@ func uninstallPentAGI() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Run()
+	}
+}
+
+// bridgePentAGI connects PentAGI containers to the LABYRINTH network so
+// that agents can reach the portal trap services (labyrinth-ssh, labyrinth-http).
+func bridgePentAGI(composePath string) {
+	if !networkAvailable() {
+		return
+	}
+
+	// Give compose a moment to finish creating containers
+	out, err := exec.Command("docker", "compose", "-f", composePath, "ps", "-q").Output()
+	if err != nil {
+		return
+	}
+
+	ids := strings.Fields(strings.TrimSpace(string(out)))
+	if len(ids) == 0 {
+		return
+	}
+
+	// Resolve container names from IDs
+	var names []string
+	for _, id := range ids {
+		nameOut, err := exec.Command("docker", "inspect", "--format", "{{.Name}}", id).Output()
+		if err == nil {
+			name := strings.TrimPrefix(strings.TrimSpace(string(nameOut)), "/")
+			names = append(names, name)
+		}
+	}
+
+	if len(names) > 0 {
+		info("Connecting PentAGI to LABYRINTH network...")
+		connectContainersToLabyrinth(names)
 	}
 }
 
@@ -458,7 +494,7 @@ func resolveAgentAPIKey(agentID string) (provider, model string, envFlags []stri
 			errMsg("API key is required")
 			os.Exit(1)
 		}
-		envFlags = []string{"-e", "OPENAI_API_KEY=" + key}
+		envFlags = writeEnvFile(map[string]string{"OPENAI_API_KEY": key})
 	case "anthropic":
 		if model == "" {
 			model = "claude-sonnet-4-20250514"
@@ -473,7 +509,7 @@ func resolveAgentAPIKey(agentID string) (provider, model string, envFlags []stri
 			errMsg("API key is required")
 			os.Exit(1)
 		}
-		envFlags = []string{"-e", "ANTHROPIC_API_KEY=" + key}
+		envFlags = writeEnvFile(map[string]string{"ANTHROPIC_API_KEY": key})
 	case "ollama":
 		if model == "" {
 			model = "llama3"

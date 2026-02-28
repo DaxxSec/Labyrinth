@@ -9,6 +9,8 @@ and writes auth events for orchestrator consumption.
 
 import json
 import os
+import random
+import secrets
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
@@ -16,63 +18,142 @@ from urllib.parse import parse_qs, urlparse
 AUTH_EVENTS_FILE = "/var/labyrinth/forensics/auth_events.jsonl"
 FORENSICS_DIR = "/var/labyrinth/forensics/sessions"
 
-# ── Bait content ──────────────────────────────────────────────
+# ── Randomized identity (generated fresh each container boot) ─
 
-LOGIN_PAGE = """<!DOCTYPE html>
+_COMPANIES = [
+    "Meridian", "Cascade", "Pinnacle", "Stratos", "Evergreen",
+    "Arclight", "Triton", "Halcyon", "Sterling", "Vanguard",
+    "Keystone", "Polaris", "Ridgeline", "Ironclad", "Summit",
+]
+_SUFFIXES = [
+    "Systems", "Technologies", "Solutions", "Digital", "Networks",
+    "Labs", "Group", "Cloud", "Engineering", "Platform",
+]
+_TLDS = [".com", ".io", ".dev", ".tech", ".net"]
+_FIRST = ["james", "sarah", "mike", "alex", "jordan", "taylor", "chris", "sam"]
+_LAST = ["chen", "patel", "garcia", "wilson", "moore", "lee", "kumar", "brown"]
+
+
+def _rand_hex(n):
+    return secrets.token_hex(n)
+
+
+def _rand_password():
+    # nosec B311 — intentionally weak bait passwords for honeypot, not real credentials
+    words = ["Autumn", "Silver", "Thunder", "Crystal", "Phoenix", "Harbor", "Alpine", "Ember"]
+    return random.choice(words) + str(random.randint(100, 999)) + random.choice("!@#$%")  # nosec B311
+
+
+def _generate_identity():
+    """Generate a randomized company identity for this container boot."""
+    company = random.choice(_COMPANIES)
+    suffix = random.choice(_SUFFIXES)
+    domain = company.lower() + random.choice(_TLDS)
+    full = f"{company} {suffix}"
+
+    users = []
+    used = set()
+    for _ in range(3):
+        while True:
+            first = random.choice(_FIRST)
+            last = random.choice(_LAST)
+            uname = first[0] + last
+            if uname not in used:
+                used.add(uname)
+                break
+        users.append({"email": f"{uname}@{domain}", "role": "admin", "uname": uname})
+
+    # All values below are intentional honeypot bait — not real credentials.
+    # nosec: AKIA/sk_live_/sk- prefixes are deliberate to appear authentic.
+    return {
+        "company": full,
+        "domain": domain,
+        "users": users,
+        "db_pass": _rand_password(),
+        "redis_token": _rand_hex(8),
+        "aws_key_id": "AKIA" + _rand_hex(8).upper(),       # nosec — bait AWS key
+        "aws_secret": _rand_hex(20),
+        "jwt_secret": _rand_hex(16),
+        "api_key": "sk-" + _rand_hex(16),                   # nosec — bait API key
+        "stripe_key": "sk_live_" + _rand_hex(16),            # nosec — bait Stripe key
+        "deploy_key": "sk-deploy-" + _rand_hex(12),          # nosec — bait deploy key
+    }
+
+
+# Generated once at import time (container startup)
+_ID = _generate_identity()
+
+# ── Bait content (all strings derived from _ID for anti-fingerprinting) ──
+
+_VERSIONS = ["3.2.1", "2.8.4", "4.1.0", "3.5.2", "2.11.3", "5.0.1"]
+_PRODUCTS = ["Infrastructure Management Suite", "Admin Console", "DevOps Platform",
+             "Operations Center", "Control Plane", "Service Manager"]
+_VERSION = f"v{random.choice(_VERSIONS)}"
+_PRODUCT = random.choice(_PRODUCTS)
+
+
+def _build_login_page():
+    company = _ID["company"]
+    domain = _ID["domain"]
+    placeholder = _ID["users"][0]["email"] if _ID["users"] else f"admin@{domain}"
+    return f"""<!DOCTYPE html>
 <html>
 <head>
     <title>Internal Admin Panel</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-        .header { background: #1a1a2e; color: white; padding: 15px 30px; }
-        .header h1 { margin: 0; font-size: 18px; }
-        .header span { color: #e94560; font-size: 12px; }
-        .container { max-width: 400px; margin: 80px auto; background: white;
-                     padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { color: #1a1a2e; margin-top: 0; }
-        input { width: 100%; padding: 10px; margin: 8px 0 16px; border: 1px solid #ddd;
-                border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #e94560; color: white; border: none;
-                 border-radius: 4px; cursor: pointer; font-size: 14px; }
-        button:hover { background: #c73e54; }
-        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+        body {{ font-family: -apple-system, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }}
+        .header {{ background: #1a1a2e; color: white; padding: 15px 30px; }}
+        .header h1 {{ margin: 0; font-size: 18px; }}
+        .header span {{ color: #e94560; font-size: 12px; }}
+        .container {{ max-width: 400px; margin: 80px auto; background: white;
+                     padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        h2 {{ color: #1a1a2e; margin-top: 0; }}
+        input {{ width: 100%; padding: 10px; margin: 8px 0 16px; border: 1px solid #ddd;
+                border-radius: 4px; box-sizing: border-box; }}
+        button {{ width: 100%; padding: 12px; background: #e94560; color: white; border: none;
+                 border-radius: 4px; cursor: pointer; font-size: 14px; }}
+        button:hover {{ background: #c73e54; }}
+        .footer {{ text-align: center; color: #999; font-size: 12px; margin-top: 20px; }}
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>ACME Corp Internal</h1>
+        <h1>{company} Internal</h1>
         <span>RESTRICTED ACCESS — Authorized Personnel Only</span>
     </div>
     <div class="container">
         <h2>Admin Login</h2>
         <form method="POST" action="/login">
             <label>Username</label>
-            <input type="text" name="username" placeholder="admin@company.com">
+            <input type="text" name="username" placeholder="{placeholder}">
             <label>Password</label>
             <input type="password" name="password" placeholder="Enter password">
             <button type="submit">Sign In</button>
         </form>
-        <div class="footer">v3.2.1 — Infrastructure Management Suite</div>
+        <div class="footer">{_VERSION} — {_PRODUCT}</div>
     </div>
 </body>
 </html>"""
 
-DASHBOARD_PAGE = """<!DOCTYPE html>
+
+def _build_dashboard_page():
+    company = _ID["company"]
+    return f"""<!DOCTYPE html>
 <html>
-<head><title>Admin Dashboard</title>
+<head><title>{company} Dashboard</title>
 <style>
-    body { font-family: sans-serif; background: #f5f5f5; margin: 0; }
-    .header { background: #1a1a2e; color: white; padding: 15px 30px; }
-    .content { padding: 30px; }
-    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .card h3 { margin-top: 0; color: #1a1a2e; }
-    .status { color: #27ae60; }
-    a { color: #e94560; }
+    body {{ font-family: sans-serif; background: #f5f5f5; margin: 0; }}
+    .header {{ background: #1a1a2e; color: white; padding: 15px 30px; }}
+    .content {{ padding: 30px; }}
+    .card {{ background: white; padding: 20px; margin: 10px 0; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+    .card h3 {{ margin-top: 0; color: #1a1a2e; }}
+    .status {{ color: #27ae60; }}
+    a {{ color: #e94560; }}
 </style>
 </head>
 <body>
-    <div class="header"><h1>Infrastructure Dashboard</h1></div>
+    <div class="header"><h1>{company} Dashboard</h1></div>
     <div class="content">
         <div class="card"><h3>Services</h3>
             <p>API Gateway: <span class="status">Running</span></p>
@@ -89,36 +170,53 @@ DASHBOARD_PAGE = """<!DOCTYPE html>
 </body>
 </html>"""
 
-FAKE_ENV = """# Production Environment — DO NOT SHARE
+
+def _build_fake_env():
+    return f"""# Production Environment — DO NOT SHARE
 APP_ENV=production
-DATABASE_URL=postgresql://admin:Pr0d_DB_P@ss!@db-master.internal:5432/production
-REDIS_URL=redis://:r3d1s_auth_t0ken@redis.internal:6379/0
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-JWT_SECRET=labyrinth-bait-jwt-secret-do-not-use
-API_KEY=sk-labyrinth-bait-api-key-000000000000
-STRIPE_SECRET_KEY=sk_live_labyrinth_bait_stripe_key
-SLACK_WEBHOOK=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+DATABASE_URL=postgresql://admin:{_ID["db_pass"]}@db-master.internal:5432/production
+REDIS_URL=redis://:{_ID["redis_token"]}@redis.internal:6379/0
+AWS_ACCESS_KEY_ID={_ID["aws_key_id"]}
+AWS_SECRET_ACCESS_KEY={_ID["aws_secret"]}
+JWT_SECRET={_ID["jwt_secret"]}
+API_KEY={_ID["api_key"]}
+STRIPE_SECRET_KEY={_ID["stripe_key"]}
+SLACK_WEBHOOK=https://hooks.slack.com/services/T{_rand_hex(4).upper()}/B{_rand_hex(4).upper()}/{_rand_hex(12)}
 """
 
-FAKE_CONFIG = json.dumps({
-    "services": {
-        "api": {"host": "10.0.1.10", "port": 8080, "replicas": 3},
-        "database": {"host": "10.0.2.10", "port": 5432, "engine": "postgresql"},
-        "redis": {"host": "10.0.3.10", "port": 6379},
-        "elasticsearch": {"host": "10.0.4.10", "port": 9200},
-    },
-    "auth": {"jwt_issuer": "acme-corp", "token_ttl": 3600},
-    "deploy": {"ci_server": "jenkins.internal:8080", "artifact_bucket": "s3://acme-deploys"},
-}, indent=2)
 
-FAKE_USERS = json.dumps({
-    "users": [
-        {"id": 1, "email": "admin@company.com", "role": "superadmin", "last_login": "2024-12-20T15:30:00Z"},
-        {"id": 2, "email": "deploy@company.com", "role": "deployer", "api_key": "sk-deploy-labyrinth-bait"},
-        {"id": 3, "email": "readonly@company.com", "role": "viewer"},
-    ]
-}, indent=2)
+def _build_fake_config():
+    slug = _ID["company"].split()[0].lower()
+    return json.dumps({
+        "services": {
+            "api": {"host": "10.0.1.10", "port": 8080, "replicas": 3},
+            "database": {"host": "10.0.2.10", "port": 5432, "engine": "postgresql"},
+            "redis": {"host": "10.0.3.10", "port": 6379},
+            "elasticsearch": {"host": "10.0.4.10", "port": 9200},
+        },
+        "auth": {"jwt_issuer": slug, "token_ttl": 3600},
+        "deploy": {"ci_server": "jenkins.internal:8080", "artifact_bucket": f"s3://{slug}-deploys"},
+    }, indent=2)
+
+
+def _build_fake_users():
+    users = []
+    for i, u in enumerate(_ID["users"]):
+        entry = {"id": i + 1, "email": u["email"], "role": "superadmin" if i == 0 else ("deployer" if i == 1 else "viewer")}
+        if i == 0:
+            entry["last_login"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        if i == 1:
+            entry["api_key"] = _ID["deploy_key"]
+        users.append(entry)
+    return json.dumps({"users": users}, indent=2)
+
+
+# Build all content once at startup (uses _ID identity)
+LOGIN_PAGE = _build_login_page()
+DASHBOARD_PAGE = _build_dashboard_page()
+FAKE_ENV = _build_fake_env()
+FAKE_CONFIG = _build_fake_config()
+FAKE_USERS = _build_fake_users()
 
 
 def _log_auth_event(src_ip: str, username: str, password: str):

@@ -605,6 +605,14 @@ func plantWebBait(manifest BaitManifest) []string {
 	}
 
 	info(fmt.Sprintf("Planted %d web bait files", len(planted)))
+
+	// Restart the HTTP container so the server process picks up new bait files
+	// and regenerates its anti-fingerprinting identity
+	info("Restarting HTTP portal trap...")
+	if err := exec.Command("docker", "restart", "labyrinth-http").Run(); err != nil {
+		warn(fmt.Sprintf("Could not restart labyrinth-http: %v", err))
+	}
+
 	return planted
 }
 
@@ -635,7 +643,7 @@ func saveBaitManifest(manifest BaitManifest) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(baitManifestPath(), data, 0644)
+	return os.WriteFile(baitManifestPath(), data, 0600)
 }
 
 func loadBaitManifest() *BaitManifest {

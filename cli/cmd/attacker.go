@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // Agent describes an attacker agent in the catalog.
@@ -105,7 +105,7 @@ var agentCatalog = []Agent{
 	},
 }
 
-const labyrinthNetwork = "labyrinth-net"
+const labyrinthNetworkSuffix = "_labyrinth-net"
 
 var attackerCmd = &cobra.Command{
 	Use:   "attacker",
@@ -428,8 +428,23 @@ func attackerPreflight() error {
 	return nil
 }
 
+// findLabyrinthNetwork discovers the actual Docker network name created by
+// docker compose (which prefixes with the project name, e.g. "labyrinth-labyrinth-test_labyrinth-net").
+func findLabyrinthNetwork() string {
+	out, err := exec.Command("docker", "network", "ls", "--format", "{{.Name}}").Output()
+	if err != nil {
+		return ""
+	}
+	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.HasSuffix(name, labyrinthNetworkSuffix) {
+			return name
+		}
+	}
+	return ""
+}
+
 func checkLabyrinthNetwork() {
-	if err := exec.Command("docker", "network", "inspect", labyrinthNetwork).Run(); err != nil {
+	if findLabyrinthNetwork() == "" {
 		warn("LABYRINTH network not found — deploy an environment first")
 		dim := "\033[2m"
 		reset := "\033[0m"
@@ -443,12 +458,13 @@ func checkLabyrinthNetwork() {
 }
 
 func networkAvailable() bool {
-	return exec.Command("docker", "network", "inspect", labyrinthNetwork).Run() == nil
+	return findLabyrinthNetwork() != ""
 }
 
 func netFlags() []string {
-	if networkAvailable() {
-		return []string{"--network", labyrinthNetwork}
+	net := findLabyrinthNetwork()
+	if net != "" {
+		return []string{"--network", net}
 	}
 	return []string{"--network", "host"}
 }
@@ -465,6 +481,27 @@ func targetHTTPHost() string {
 		return "labyrinth-http"
 	}
 	return "localhost"
+}
+
+// connectContainersToLabyrinth connects the given container names to the
+// LABYRINTH Docker network so they can reach portal trap services.
+func connectContainersToLabyrinth(containerNames []string) {
+	net := findLabyrinthNetwork()
+	if net == "" {
+		return
+	}
+	for _, name := range containerNames {
+		// Check if already connected (ignore error)
+		check := exec.Command("docker", "inspect", "--format",
+			fmt.Sprintf(`{{index .NetworkSettings.Networks "%s"}}`, net), name)
+		out, _ := check.Output()
+		if strings.TrimSpace(string(out)) != "<no value>" && strings.TrimSpace(string(out)) != "" {
+			continue
+		}
+		if err := exec.Command("docker", "network", "connect", net, name).Run(); err == nil {
+			info(fmt.Sprintf("Connected %s to %s", name, net))
+		}
+	}
 }
 
 func attackersDir() string {
@@ -502,23 +539,23 @@ func loadAgentConfig(id string) *AgentConfig {
 
 func promptInput(prompt string) string {
 	fmt.Printf("  %s: ", prompt)
-	scanner := bufio.NewScanner(os.Stdin)
-	if scanner.Scan() {
-		return strings.TrimSpace(scanner.Text())
-	}
-	return ""
+	var line string
+	fmt.Scanln(&line)
+	return strings.TrimSpace(line)
 }
 
 func promptSecret(prompt string) string {
 	fmt.Printf("  %s: ", prompt)
-	scanner := bufio.NewScanner(os.Stdin)
-	if scanner.Scan() {
-		return strings.TrimSpace(scanner.Text())
+	b, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println() // newline after hidden input
+	if err != nil {
+		return ""
 	}
-	return ""
+	return strings.TrimSpace(string(b))
 }
 
 // collectAPIKey prompts for provider and API key, returns provider, model, and env flags for docker.
+// API keys are passed via --env-file (not -e) to avoid exposing them in process args.
 func collectAPIKey() (provider, model string, envFlags []string) {
 	bold := "\033[1m"
 	dim := "\033[2m"
@@ -547,7 +584,7 @@ func collectAPIKey() (provider, model string, envFlags []string) {
 			errMsg("API key is required")
 			os.Exit(1)
 		}
-		envFlags = []string{"-e", "OPENAI_API_KEY=" + key}
+		envFlags = writeEnvFile(map[string]string{"OPENAI_API_KEY": key})
 	case "2":
 		provider = "anthropic"
 		model = "claude-sonnet-4-20250514"
@@ -561,7 +598,7 @@ func collectAPIKey() (provider, model string, envFlags []string) {
 			errMsg("API key is required")
 			os.Exit(1)
 		}
-		envFlags = []string{"-e", "ANTHROPIC_API_KEY=" + key}
+		envFlags = writeEnvFile(map[string]string{"ANTHROPIC_API_KEY": key})
 	case "3":
 		provider = "ollama"
 		model = "llama3"
@@ -572,6 +609,38 @@ func collectAPIKey() (provider, model string, envFlags []string) {
 	}
 
 	return provider, model, envFlags
+}
+
+// writeEnvFile writes key=value pairs to a temp file with 0600 permissions
+// and returns docker --env-file flags. The file is cleaned up on process exit.
+func writeEnvFile(vars map[string]string) []string {
+	f, err := os.CreateTemp("", "labyrinth-env-*")
+	if err != nil {
+		// Fallback: pass env vars directly (less secure but functional)
+		var flags []string
+		for k, v := range vars {
+			flags = append(flags, "-e", k+"="+v)
+		}
+		return flags
+	}
+	os.Chmod(f.Name(), 0600)
+	for k, v := range vars {
+		fmt.Fprintf(f, "%s=%s\n", k, v)
+	}
+	f.Close()
+	// Schedule cleanup when the process exits
+	envFilesToClean = append(envFilesToClean, f.Name())
+	return []string{"--env-file", f.Name()}
+}
+
+// envFilesToClean tracks temp env files to remove on exit.
+var envFilesToClean []string
+
+// CleanupEnvFiles removes any temp env files created during this session.
+func CleanupEnvFiles() {
+	for _, f := range envFilesToClean {
+		os.Remove(f)
+	}
 }
 
 // ── Status Detection ────────────────────────────────────────
