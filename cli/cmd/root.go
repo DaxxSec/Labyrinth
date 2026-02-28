@@ -19,10 +19,11 @@ var rootCmd = &cobra.Command{
 	Long:    "Deploy, manage, and monitor LABYRINTH portal trap environments.",
 	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Print banner for all commands except TUI (it takes over the screen)
-		if cmd.Name() != "tui" {
-			banner.Print()
+		// Suppress banner for TUI (takes over screen) and completion (outputs to stdout)
+		if cmd.Name() == "tui" || cmd.Name() == "completion" {
+			return
 		}
+		banner.Print()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if installFlag {
