@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — Bait Credential Watcher
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 #
 #  Uses inotifywait to detect access to planted bait files.
 #  Writes escalation events to the forensic volume.

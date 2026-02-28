@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — Real-Time Capture Dashboard
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 FROM python:3.11-slim
 

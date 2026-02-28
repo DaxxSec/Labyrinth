@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 LABYRINTH — PAM Auth Hook (Layer 1: THRESHOLD)
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Called by pam_exec on SSH authentication events.
 Writes auth events to the shared forensic volume for the orchestrator to pick up.

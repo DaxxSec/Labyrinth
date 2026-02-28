@@ -1,7 +1,7 @@
 """
 LABYRINTH Orchestrator
 ======================
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Core orchestration engine for the LABYRINTH defensive architecture.
 Manages container lifecycle, session tracking, layer transitions,

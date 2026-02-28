@@ -1,6 +1,6 @@
 """
 LABYRINTH — Layer Controllers
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Individual controllers for each layer of the reverse kill chain.
 """

@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 2: MINOTAUR
 Container Entrypoint Generator
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Generates bash entrypoint scripts for session containers that apply
 contradictions, set up bait watchers, and optionally activate L3.

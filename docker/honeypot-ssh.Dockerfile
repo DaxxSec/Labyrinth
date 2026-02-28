@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — SSH Portal Trap (Layer 1: THRESHOLD)
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 FROM ubuntu:22.04
 

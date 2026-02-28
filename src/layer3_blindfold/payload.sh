@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — Layer 3: BLINDFOLD
 #  Terminal Encoding Corruption Payload
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 #
 #  This payload is injected into .bashrc/.profile by the orchestrator

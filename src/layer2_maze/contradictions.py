@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 2: MINOTAUR
 Contradiction Catalog
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Defines environmental contradictions that are seeded into session containers.
 Each contradiction introduces subtle inconsistencies that waste AI agent analysis cycles.

@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 4: PUPPETEER
 CA Certificate Injector
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Injects the mitmproxy CA certificate into target containers
 so HTTPS interception works transparently.

@@ -1,6 +1,6 @@
 """
 LABYRINTH — Filesystem Event Watcher
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Uses watchdog to monitor forensic event files and dispatch to the orchestrator.
 """

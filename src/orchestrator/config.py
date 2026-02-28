@@ -1,6 +1,6 @@
 """
 LABYRINTH — Orchestrator Configuration
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 YAML configuration parser with sane defaults.
 """

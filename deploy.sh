@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 #  Project LABYRINTH — Deployment Script
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 

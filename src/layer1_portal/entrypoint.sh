@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — SSH Portal Trap Entrypoint
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 
 set -e

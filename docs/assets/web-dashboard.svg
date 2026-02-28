@@ -265,5 +265,5 @@
 
   <!-- Footer -->
   <line x1="0" y1="598" x2="900" y2="598" stroke="#1a1a2e"/>
-  <text x="450" y="612" class="dim" font-size="9" text-anchor="middle">Project LABYRINTH · Stephen Stewart &amp; Claude (Anthropic)</text>
+  <text x="450" y="612" class="dim" font-size="9" text-anchor="middle">Project LABYRINTH · DaxxSec &amp; Claude (Anthropic)</text>
 </svg>

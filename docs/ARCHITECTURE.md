@@ -1,6 +1,6 @@
 # LABYRINTH Architecture Specification v0.2
 
-**Authors:** Stephen Stewart & Claude (Anthropic)
+**Authors:** DaxxSec & Claude (Anthropic)
 
 ## Overview
 

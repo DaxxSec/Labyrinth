@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 4: PUPPETEER
 mitmproxy Interceptor Addon
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Intercepts AI agent API calls passing through the MITM proxy.
 Four operational modes:

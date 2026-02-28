@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — Session Template Container
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 #
 #  Base image for dynamically spawned session containers.
 #  The orchestrator creates containers from this image with

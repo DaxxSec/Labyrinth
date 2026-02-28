@@ -107,7 +107,7 @@
   </g>
 
   <!-- Authors -->
-  <text x="400" y="178" text-anchor="middle" font-family="monospace, 'Courier New'" font-size="9" fill="#484f58">Stephen Stewart  ·  Claude (Anthropic)</text>
+  <text x="400" y="178" text-anchor="middle" font-family="monospace, 'Courier New'" font-size="9" fill="#484f58">DaxxSec  ·  Claude (Anthropic)</text>
 
   <!-- Corner decorations -->
   <g opacity="0.2">

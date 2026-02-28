@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — MITM Proxy (Layer 4: PUPPETEER)
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 # ═══════════════════════════════════════════════════════════════
 FROM python:3.11-slim
 

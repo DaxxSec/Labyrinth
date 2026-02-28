@@ -1,6 +1,6 @@
 """
 LABYRINTH — Orchestrator Unit Tests
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 """
 
 import json

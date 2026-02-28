@@ -1,6 +1,6 @@
 """
 LABYRINTH — SIEM Integration
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Fire-and-forget event push to external SIEM endpoints.
 """

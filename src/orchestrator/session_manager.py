@@ -1,6 +1,6 @@
 """
 LABYRINTH — Session Manager
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Thread-safe session lifecycle management with forensic ID generation.
 """

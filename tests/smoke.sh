@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LABYRINTH — End-to-End Smoke Test
-# Authors: Stephen Stewart & Claude (Anthropic)
+# Authors: DaxxSec & Claude (Anthropic)
 #
 # Builds, deploys, sends a probe, verifies forensic output, then tears down.
 # Requires: Docker, docker compose, ssh client.

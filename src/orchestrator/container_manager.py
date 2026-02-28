@@ -1,6 +1,6 @@
 """
 LABYRINTH — Container Manager
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Docker SDK container spawning, lifecycle management, and cleanup.
 """

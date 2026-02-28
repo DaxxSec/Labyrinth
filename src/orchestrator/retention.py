@@ -1,6 +1,6 @@
 """
 LABYRINTH — Forensic Data Retention
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Automated cleanup of aged forensic data files based on retention policy.
 """

@@ -1,6 +1,6 @@
 """
 LABYRINTH — Orchestrator Entry Point
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Usage: python3 -m orchestrator
 """

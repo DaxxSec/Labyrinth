@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 0: BEDROCK
 Runtime Environment Validator
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Validates that the runtime environment meets security requirements
 before the orchestrator enters its main loop.

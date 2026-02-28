@@ -1,6 +1,6 @@
 """
 LABYRINTH — Smoke Tests
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 End-to-end component tests for SIEM, retention, BEDROCK validation,
 forensic event schema, and kill chain integration.

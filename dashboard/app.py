@@ -1,6 +1,6 @@
 """
 LABYRINTH — Real-Time Capture Dashboard
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request

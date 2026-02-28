@@ -1,7 +1,7 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 #  LABYRINTH — Session Container Entrypoint
-#  Authors: Stephen Stewart & Claude (Anthropic)
+#  Authors: DaxxSec & Claude (Anthropic)
 #
 #  Reads the base64-encoded entrypoint script from environment,
 #  decodes it, and executes it. Falls back to plain sshd.

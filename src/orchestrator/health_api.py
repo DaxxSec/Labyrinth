@@ -1,7 +1,7 @@
 """
 LABYRINTH — Orchestrator Health API
 ====================================
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Minimal internal Flask server (port 8888) that exposes container health
 data to the dashboard without requiring a Docker socket mount.

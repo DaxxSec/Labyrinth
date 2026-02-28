@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <sub>Built by <strong>Stephen Stewart</strong> & <strong>Claude</strong> (Anthropic) · <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/DaxxSec/labyrinth">GitHub</a></sub>
+  <sub>Built by <strong>DaxxSec</strong> & <strong>Claude</strong> (Anthropic) · <a href="https://github.com/DaxxSec/labyrinth">GitHub</a></sub>
 </p>
 
 ---
@@ -211,9 +211,9 @@ LABYRINTH integrates with the following open-source offensive AI projects for te
 ---
 
 <p align="center">
-  <strong>Built by Stephen Stewart & Claude (Anthropic)</strong>
+  <strong>Built by DaxxSec & Claude (Anthropic)</strong>
   <br>
   <sub>Defending against the future, today.</sub>
   <br><br>
-  <a href="https://linkedin.com/in/[your-linkedin]">LinkedIn</a> · <a href="https://github.com/DaxxSec/labyrinth">GitHub</a>
+  <a href="https://github.com/DaxxSec/labyrinth">GitHub</a>
 </p>

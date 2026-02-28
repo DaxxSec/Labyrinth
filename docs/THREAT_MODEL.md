@@ -1,6 +1,6 @@
 # AI Agent Threat Model
 
-**Authors:** Stephen Stewart & Claude (Anthropic)
+**Authors:** DaxxSec & Claude (Anthropic)
 
 ## Overview
 

@@ -1,7 +1,7 @@
 """
 LABYRINTH — Layer 1: THRESHOLD
 HTTP Portal Trap
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 
 Fake admin panel that captures credentials, serves bait files,
 and writes auth events for orchestrator consumption.

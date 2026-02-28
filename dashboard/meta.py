@@ -1,7 +1,7 @@
 """
 LABYRINTH — Central Meta-Dashboard
 Aggregates data across all portal trap environments.
-Authors: Stephen Stewart & Claude (Anthropic)
+Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, jsonify
