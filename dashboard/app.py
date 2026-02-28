@@ -283,10 +283,9 @@ def layers():
             layer_statuses[1]["status"] = "active"
             layer_statuses[1]["detail"] = f"{len(portal_running)} portal services"
 
-        # Check for proxy
+        # Check for proxy — mark as ready but not active until sessions use it
         proxy_running = [c for c in running if "proxy" in c.get("name", "")]
         if proxy_running:
-            layer_statuses[4]["status"] = "active"
             layer_statuses[4]["detail"] = "MITM proxy running"
     except Exception:
         pass

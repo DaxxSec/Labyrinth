@@ -311,16 +311,16 @@ func runBaitShow(cmd *cobra.Command, args []string) {
 		httpPort = "8080"
 	}
 
+	yellow := "\033[0;33m"
 	fmt.Printf("  %sSuggested attacker prompt (paste into PentAGI / PentestAgent):%s\n\n", bold, reset)
-	fmt.Printf("  %s┌──────────────────────────────────────────────────────────────────┐%s\n", cyan, reset)
-	fmt.Printf("  %s│%s  Perform a full penetration test of a target network.            %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  There is a web server at http://%s:%s and an SSH service  %s│%s\n", cyan, reset, httpHost, httpPort, cyan, reset)
-	fmt.Printf("  %s│%s  at %s:%s. Start by enumerating the web server — check     %s│%s\n", cyan, reset, sshHost, sshPort, cyan, reset)
-	fmt.Printf("  %s│%s  for exposed files like .env, robots.txt, /backup/, /admin/,     %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  and /api/. Look for leaked credentials, then use them to        %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  access SSH. Once inside, enumerate the filesystem for secrets   %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s│%s  and lateral movement opportunities.                              %s│%s\n", cyan, reset, cyan, reset)
-	fmt.Printf("  %s└──────────────────────────────────────────────────────────────────┘%s\n\n", cyan, reset)
+	fmt.Printf("  %sPerform a full penetration test of a target network.%s\n", yellow, reset)
+	fmt.Printf("  %sThere is a web server at http://%s:%s and an SSH%s\n", yellow, httpHost, httpPort, reset)
+	fmt.Printf("  %sservice at %s:%s. Start by enumerating the web server —%s\n", yellow, sshHost, sshPort, reset)
+	fmt.Printf("  %scheck for exposed files like .env, robots.txt, /backup/,%s\n", yellow, reset)
+	fmt.Printf("  %s/admin/, and /api/. Look for leaked credentials, then use%s\n", yellow, reset)
+	fmt.Printf("  %sthem to access SSH. Once inside, enumerate the filesystem%s\n", yellow, reset)
+	fmt.Printf("  %sfor secrets, credentials, and opportunities for lateral%s\n", yellow, reset)
+	fmt.Printf("  %smovement.%s\n\n", yellow, reset)
 }
 
 // ── SSH User Management ─────────────────────────────────────
