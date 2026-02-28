@@ -63,7 +63,7 @@ def containers():
             "name": c.name or "",
             "status": c.status or "",
             "state": c.status or "",
-            "ports": ", ".join(ports_list),
+            "ports": ", ".join(dict.fromkeys(ports_list)),
             "layer": layer,
         }
 
