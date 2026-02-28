@@ -285,6 +285,61 @@ if [ "$in_path" = false ]; then
     fi
 fi
 
+section "Shell Completion"
+
+# Detect shell and install completions
+install_completions() {
+    local user_shell
+    user_shell="$(basename "${SHELL:-}")"
+
+    # Also check if fish is running as parent (common zsh→fish exec setup)
+    if [ -z "$user_shell" ] || [ "$user_shell" = "bash" ] || [ "$user_shell" = "zsh" ]; then
+        # Check if fish config dir exists as a hint the user uses fish
+        if [ -d "${HOME}/.config/fish" ] && has fish; then
+            user_shell="fish"
+        fi
+    fi
+
+    case "$user_shell" in
+        fish)
+            local fish_dir="${HOME}/.config/fish/completions"
+            mkdir -p "$fish_dir"
+            "${INSTALL_DIR}/labyrinth" completion fish > "${fish_dir}/labyrinth.fish" 2>/dev/null
+            info "Fish completions installed (${fish_dir}/labyrinth.fish)"
+            ;;
+        zsh)
+            local zsh_dir="${HOME}/.zsh/completions"
+            mkdir -p "$zsh_dir"
+            "${INSTALL_DIR}/labyrinth" completion zsh > "${zsh_dir}/_labyrinth" 2>/dev/null
+            info "Zsh completions installed (${zsh_dir}/_labyrinth)"
+            # Ensure fpath is set
+            if [ -f "${HOME}/.zshrc" ] && ! grep -qF "/.zsh/completions" "${HOME}/.zshrc" 2>/dev/null; then
+                echo "" >> "${HOME}/.zshrc"
+                echo "# labyrinth shell completion" >> "${HOME}/.zshrc"
+                echo 'fpath=(~/.zsh/completions $fpath)' >> "${HOME}/.zshrc"
+                echo 'autoload -Uz compinit && compinit' >> "${HOME}/.zshrc"
+            fi
+            ;;
+        bash)
+            local bash_dir="${HOME}/.bash_completion.d"
+            mkdir -p "$bash_dir"
+            "${INSTALL_DIR}/labyrinth" completion bash > "${bash_dir}/labyrinth" 2>/dev/null
+            info "Bash completions installed (${bash_dir}/labyrinth)"
+            # Ensure it's sourced
+            if [ -f "${HOME}/.bashrc" ] && ! grep -qF "bash_completion.d/labyrinth" "${HOME}/.bashrc" 2>/dev/null; then
+                echo "" >> "${HOME}/.bashrc"
+                echo '# labyrinth shell completion' >> "${HOME}/.bashrc"
+                echo '[ -f ~/.bash_completion.d/labyrinth ] && source ~/.bash_completion.d/labyrinth' >> "${HOME}/.bashrc"
+            fi
+            ;;
+        *)
+            warn "Could not detect shell — run 'labyrinth completion install' manually"
+            ;;
+    esac
+}
+
+install_completions
+
 section "Done"
 
 info "LABYRINTH CLI installed successfully"
