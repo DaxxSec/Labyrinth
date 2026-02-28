@@ -104,3 +104,10 @@ type LayersResponse struct {
 type PromptsResponse struct {
 	Prompts []CapturedPrompt `json:"prompts"`
 }
+
+// ResetResponse holds the result of a reset operation.
+type ResetResponse struct {
+	ContainersRemoved int      `json:"containers_removed"`
+	FilesCleared      int      `json:"files_cleared"`
+	Errors            []string `json:"errors"`
+}

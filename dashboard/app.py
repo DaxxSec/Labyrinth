@@ -55,6 +55,7 @@ def stats():
     session_files = glob.glob(f"{FORENSICS_DIR}/sessions/*.jsonl")
     prompt_files = glob.glob(f"{FORENSICS_DIR}/prompts/*.txt")
     total_events = 0
+    active_sessions = 0
     auth_attempts = 0
     http_requests = 0
     l3_activations = 0
@@ -62,10 +63,13 @@ def stats():
     max_depth_reached = 0
 
     for f in session_files:
+        session_ended = False
         for ev in _read_jsonl(f):
             total_events += 1
             event_type = ev.get("event", "")
-            if event_type == "blindfold_activated":
+            if event_type == "session_end":
+                session_ended = True
+            elif event_type == "blindfold_activated":
                 l3_activations += 1
             elif event_type == "api_intercepted":
                 l4_interceptions += 1
@@ -73,6 +77,8 @@ def stats():
             depth = data.get("depth", 0) if isinstance(data, dict) else 0
             if isinstance(depth, (int, float)) and depth > max_depth_reached:
                 max_depth_reached = int(depth)
+        if not session_ended:
+            active_sessions += 1
 
     # Auth events
     auth_file = os.path.join(FORENSICS_DIR, "auth_events.jsonl")
@@ -98,7 +104,7 @@ def stats():
         pass
 
     return jsonify({
-        "active_sessions": len(session_files),
+        "active_sessions": active_sessions,
         "captured_prompts": len(prompt_files),
         "total_events": total_events,
         "auth_attempts": auth_attempts,
@@ -226,6 +232,19 @@ def _query_orchestrator_containers():
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=5) as resp:
         return json.loads(resp.read().decode())
+
+
+@app.route("/api/reset", methods=["POST"])
+def reset():
+    """Proxy reset request to the orchestrator's health API."""
+    try:
+        url = "http://labyrinth-orchestrator:8888/api/reset"
+        req = urllib.request.Request(url, data=b"", method="POST",
+                                     headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return app.response_class(resp.read(), mimetype="application/json")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route("/api/containers")

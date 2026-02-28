@@ -329,8 +329,10 @@ class LabyrinthOrchestrator:
         next_config = self.l2.get_next_config(session)
 
         # L3: Check if L3 should activate on escalation
-        if self.config.layer3.activation == "on_escalation" and session.depth >= 3:
+        l3_newly_activated = False
+        if self.config.layer3.activation == "on_escalation" and session.depth >= 3 and not session.l3_active:
             session.l3_active = True
+            l3_newly_activated = True
 
         # Spawn new deeper container
         if self.docker_client:
@@ -356,6 +358,15 @@ class LabyrinthOrchestrator:
 
             # L4: Inject CA cert into new container
             inject_ca_cert(self.docker_client, container_id)
+
+            # L3: Activate blindfold on the new container if just triggered
+            if l3_newly_activated:
+                self.l3.activate(self.docker_client, session)
+                _log_forensic_event(session_id, 3, "blindfold_activated", {
+                    "container_id": container_id,
+                    "depth": session.depth,
+                })
+                logger.warning(f"L3 BLINDFOLD activated on {session.session_id}")
 
             _log_forensic_event(session_id, 2, "depth_increase", {
                 "new_depth": session.depth,

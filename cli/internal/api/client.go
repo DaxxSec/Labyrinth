@@ -109,6 +109,38 @@ func (c *Client) FetchPrompts() ([]CapturedPrompt, error) {
 	return resp.Prompts, nil
 }
 
+// ResetSessions sends a POST /api/reset to clear sessions and forensic data.
+func (c *Client) ResetSessions() (*ResetResponse, error) {
+	var result ResetResponse
+	if err := c.postJSON("/api/reset", &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) postJSON(path string, target interface{}) error {
+	resp, err := c.httpClient.Post(c.baseURL+path, "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	if err := json.Unmarshal(body, target); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) getJSON(path string, target interface{}) error {
 	resp, err := c.httpClient.Get(c.baseURL + path)
 	if err != nil {

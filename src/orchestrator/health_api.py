@@ -7,10 +7,12 @@ Minimal internal Flask server (port 8888) that exposes container health
 data to the dashboard without requiring a Docker socket mount.
 """
 
+import glob
 import logging
+import os
 import threading
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 logger = logging.getLogger("labyrinth.orchestrator.health_api")
 
@@ -71,6 +73,48 @@ def containers():
             infrastructure.append(entry)
 
     return jsonify({"infrastructure": infrastructure, "sessions": session_containers})
+
+
+@_app.route("/api/reset", methods=["POST"])
+def reset():
+    """Kill session containers and clear forensic data."""
+    if _docker_client is None:
+        return jsonify({"error": "no docker client"}), 503
+
+    removed = 0
+    errors = []
+
+    # Remove session containers
+    try:
+        session_containers = _docker_client.containers.list(
+            all=True, filters={"label": ["project=labyrinth", "layer=session"]}
+        )
+        for c in session_containers:
+            try:
+                c.remove(force=True)
+                removed += 1
+            except Exception as e:
+                errors.append(f"remove {c.name}: {e}")
+    except Exception as e:
+        errors.append(f"list containers: {e}")
+
+    # Clear forensic data
+    forensics_dir = "/var/labyrinth/forensics"
+    files_cleared = 0
+    for pattern in ["sessions/*.jsonl", "auth_events.jsonl", "http.jsonl"]:
+        for f in glob.glob(os.path.join(forensics_dir, pattern)):
+            try:
+                os.remove(f)
+                files_cleared += 1
+            except Exception as e:
+                errors.append(f"remove {f}: {e}")
+
+    logger.info(f"Reset: removed {removed} containers, cleared {files_cleared} files")
+    return jsonify({
+        "containers_removed": removed,
+        "files_cleared": files_cleared,
+        "errors": errors,
+    })
 
 
 def start(docker_client):
