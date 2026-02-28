@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/DaxxSec/labyrinth/cli/internal/banner"
 	"github.com/spf13/cobra"
@@ -19,8 +20,9 @@ var rootCmd = &cobra.Command{
 	Long:    "Deploy, manage, and monitor LABYRINTH portal trap environments.",
 	Version: Version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Suppress banner for TUI (takes over screen) and completion (outputs to stdout)
-		if cmd.Name() == "tui" || cmd.Name() == "completion" {
+		// Suppress banner for TUI, completion, and Cobra's internal __complete/__completeNoDesc
+		name := cmd.Name()
+		if name == "tui" || name == "completion" || strings.HasPrefix(name, "__") {
 			return
 		}
 		banner.Print()
