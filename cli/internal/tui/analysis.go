@@ -121,5 +121,55 @@ func renderAnalysis(a *App, height int) string {
 		b.WriteString(StyleDim.Render("  No prompts captured yet. Prompts appear when L4 intercepts API traffic.\n"))
 	}
 
+	b.WriteString("\n")
+
+	// L4 Intelligence Reports
+	if len(a.l4Intel) > 0 {
+		b.WriteString(StyleSubtle.Render("  L4 Intelligence Reports"))
+		b.WriteString("\n")
+
+		maxIntel := min(len(a.l4Intel), 5)
+		for i := 0; i < maxIntel; i++ {
+			intel := a.l4Intel[i]
+
+			// API Key badge
+			keyInfo := "no key"
+			if len(intel.APIKeys) > 0 {
+				keyInfo = intel.APIKeys[0]
+			}
+			if intel.KeyType != "" {
+				keyInfo += " (" + intel.KeyType + ")"
+			}
+
+			b.WriteString(fmt.Sprintf("  %s %s  %s\n",
+				StyleValueRed.Render("▸"),
+				StyleValueCyan.Render(keyInfo),
+				StyleDim.Render(fmt.Sprintf("%d intercepts", intel.InterceptCount)),
+			))
+
+			// Models + tools
+			details := []string{}
+			if len(intel.Models) > 0 {
+				details = append(details, "models: "+strings.Join(intel.Models, ", "))
+			}
+			if intel.ToolCount > 0 {
+				details = append(details, fmt.Sprintf("%d tools", intel.ToolCount))
+			}
+			if intel.OpenAIOrg != "" {
+				details = append(details, "org: "+intel.OpenAIOrg)
+			}
+			if intel.UserAgent != "" {
+				details = append(details, "sdk: "+truncate(intel.UserAgent, 40))
+			}
+			if len(details) > 0 {
+				b.WriteString(fmt.Sprintf("    %s\n", StyleDim.Render(strings.Join(details, " | "))))
+			}
+		}
+
+		if len(a.l4Intel) > maxIntel {
+			b.WriteString(StyleDim.Render(fmt.Sprintf("  ... %d more reports\n", len(a.l4Intel)-maxIntel)))
+		}
+	}
+
 	return b.String()
 }

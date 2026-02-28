@@ -11,6 +11,7 @@ import glob
 import logging
 import os
 import threading
+from datetime import datetime
 
 from flask import Flask, jsonify, request
 
@@ -76,6 +77,60 @@ def containers():
             infrastructure.append(entry)
 
     return jsonify({"infrastructure": infrastructure, "sessions": session_containers})
+
+
+L4_MODE_FILE = "/var/labyrinth/forensics/l4_mode.json"
+L4_VALID_MODES = {"passive", "neutralize", "double_agent", "counter_intel"}
+
+
+@_app.route("/api/l4/mode")
+def get_l4_mode():
+    """Return the current L4 interceptor mode."""
+    import json as _json
+    mode = "passive"
+    try:
+        if os.path.exists(L4_MODE_FILE):
+            with open(L4_MODE_FILE) as f:
+                data = _json.load(f)
+                mode = data.get("mode", "passive")
+    except (ValueError, IOError):
+        pass
+    return jsonify({"mode": mode, "valid_modes": sorted(L4_VALID_MODES)})
+
+
+@_app.route("/api/l4/mode", methods=["POST"])
+def set_l4_mode():
+    """Set the L4 interceptor mode. Body: {"mode": "passive|neutralize|double_agent|counter_intel"}"""
+    import json as _json
+    data = request.get_json(silent=True) or {}
+    new_mode = data.get("mode", "")
+    if new_mode not in L4_VALID_MODES:
+        return jsonify({"error": f"invalid mode: {new_mode}", "valid_modes": sorted(L4_VALID_MODES)}), 400
+
+    os.makedirs(os.path.dirname(L4_MODE_FILE), exist_ok=True)
+    with open(L4_MODE_FILE, "w") as f:
+        _json.dump({"mode": new_mode, "updated": datetime.utcnow().isoformat() + "Z"}, f)
+
+    logger.info(f"L4 mode changed to: {new_mode}")
+    return jsonify({"mode": new_mode, "status": "ok"})
+
+
+@_app.route("/api/l4/intel")
+def get_l4_intel():
+    """Return captured L4 intelligence reports."""
+    import json as _json
+    intel_dir = "/var/labyrinth/forensics/intel"
+    reports = []
+    if os.path.isdir(intel_dir):
+        for fname in sorted(os.listdir(intel_dir)):
+            if fname.endswith(".json"):
+                try:
+                    with open(os.path.join(intel_dir, fname)) as f:
+                        report = _json.load(f)
+                        reports.append(report.get("summary", {}))
+                except (ValueError, IOError):
+                    continue
+    return jsonify({"intel": reports})
 
 
 @_app.route("/api/reset", methods=["POST"])

@@ -41,7 +41,7 @@ layer3:
 
 layer4:
   mode: auto  # auto | manual (Burp-style intercept)
-  default_swap: passive  # passive | extract | double_agent
+  default_swap: passive  # passive | neutralize | double_agent | counter_intel
   log_original_prompts: true
 
 siem:

@@ -78,9 +78,9 @@ func renderLayers(a *App, height int) string {
 				case 2:
 					detail = "Adaptive filesystem | Contradiction density: medium"
 				case 3:
-					detail = "Activation: on_escalation | Method: bashrc_payload"
+					detail = "Activation: on_escalation | Method: bashrc_payload | + L4 proxy on activation"
 				case 4:
-					detail = "Mode: auto | Default swap: passive | Prompt logging: on"
+					detail = fmt.Sprintf("Mode: %s | [m] to cycle | Prompt logging: on", a.l4Mode)
 				}
 			}
 		}

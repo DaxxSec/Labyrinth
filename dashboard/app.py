@@ -242,6 +242,60 @@ def _query_orchestrator_containers():
         return json.loads(resp.read().decode())
 
 
+@app.route("/api/l4/mode")
+def l4_mode_get():
+    """Proxy L4 mode read to the orchestrator's health API."""
+    try:
+        url = "http://labyrinth-orchestrator:8888/api/l4/mode"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return app.response_class(resp.read(), mimetype="application/json")
+    except Exception:
+        # Fallback: read mode file directly from shared volume
+        mode_file = os.path.join(FORENSICS_DIR, "l4_mode.json")
+        mode = "passive"
+        if os.path.exists(mode_file):
+            try:
+                with open(mode_file) as f:
+                    data = json.load(f)
+                    mode = data.get("mode", "passive")
+            except (json.JSONDecodeError, IOError):
+                pass
+        return jsonify({"mode": mode, "valid_modes": ["counter_intel", "double_agent", "neutralize", "passive"]})
+
+
+@app.route("/api/l4/mode", methods=["POST"])
+def l4_mode_set():
+    """Proxy L4 mode change to the orchestrator's health API."""
+    try:
+        url = "http://labyrinth-orchestrator:8888/api/l4/mode"
+        body = request.get_data()
+        req = urllib.request.Request(url, data=body, method="POST",
+                                     headers={"Content-Type": "application/json",
+                                              "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return app.response_class(resp.read(), mimetype="application/json")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/l4/intel")
+def l4_intel():
+    """Return captured L4 intelligence summaries."""
+    intel_dir = os.path.join(FORENSICS_DIR, "intel")
+    reports = []
+    if os.path.isdir(intel_dir):
+        for fname in sorted(os.listdir(intel_dir)):
+            if fname.endswith(".json"):
+                try:
+                    with open(os.path.join(intel_dir, fname)) as f:
+                        report = json.load(f)
+                        reports.append(report.get("summary", {}))
+                except (json.JSONDecodeError, IOError):
+                    continue
+    return jsonify({"intel": reports})
+
+
 @app.route("/api/reset", methods=["POST"])
 def reset():
     """Proxy reset request to the orchestrator's health API."""

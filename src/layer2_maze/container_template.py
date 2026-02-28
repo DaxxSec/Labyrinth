@@ -14,6 +14,7 @@ def generate_entrypoint_script(
     contradictions: list,
     session_id: str,
     l3_active: bool = False,
+    proxy_ip: str = "172.30.0.50",
 ) -> str:
     """
     Build a bash script that:
@@ -52,6 +53,7 @@ def generate_entrypoint_script(
     ])
 
     if l3_active:
+        proxy_url = f"http://{proxy_ip}:8443"
         lines.extend([
             "# ── Layer 3: BLINDFOLD activation ─────────────────",
             "export LABYRINTH_L3_ACTIVE=1",
@@ -59,6 +61,20 @@ def generate_entrypoint_script(
             "    echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.bashrc",
             "    echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.profile",
             "fi",
+            "",
+            "# ── Layer 4: PUPPETEER proxy routing ─────────────────",
+            f"export http_proxy={proxy_url}",
+            f"export https_proxy={proxy_url}",
+            f"export HTTP_PROXY={proxy_url}",
+            f"export HTTPS_PROXY={proxy_url}",
+            f"echo 'export http_proxy={proxy_url}' >> /home/admin/.bashrc",
+            f"echo 'export https_proxy={proxy_url}' >> /home/admin/.bashrc",
+            f"echo 'export HTTP_PROXY={proxy_url}' >> /home/admin/.bashrc",
+            f"echo 'export HTTPS_PROXY={proxy_url}' >> /home/admin/.bashrc",
+            f"echo 'export http_proxy={proxy_url}' >> /home/admin/.profile",
+            f"echo 'export https_proxy={proxy_url}' >> /home/admin/.profile",
+            f"echo 'export HTTP_PROXY={proxy_url}' >> /home/admin/.profile",
+            f"echo 'export HTTPS_PROXY={proxy_url}' >> /home/admin/.profile",
             "",
         ])
 

@@ -89,10 +89,16 @@ class ContainerManager:
         """
         from layer2_maze.container_template import generate_entrypoint_script
 
+        # Extract proxy IP from DNS overrides (all map to the same proxy)
+        proxy_ip = "172.30.0.50"
+        if l4_dns_overrides:
+            proxy_ip = next(iter(l4_dns_overrides.values()), proxy_ip)
+
         entrypoint_script = generate_entrypoint_script(
             contradictions=contradiction_config.get("contradictions", []),
             session_id=session.session_id,
             l3_active=l3_active,
+            proxy_ip=proxy_ip,
         )
 
         encoded_script = base64.b64encode(entrypoint_script.encode()).decode()

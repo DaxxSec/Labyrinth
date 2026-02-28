@@ -138,6 +138,45 @@ class PuppeteerController:
         proxy_ip = self.config.proxy_ip
         return {domain: proxy_ip for domain in self.TARGET_DOMAINS}
 
+    def activate(self, docker_client, session):
+        """Activate L4 proxy routing on a running container via docker exec.
+
+        Injects HTTP_PROXY/HTTPS_PROXY environment variables so outbound
+        API calls from the session container route through the MITM proxy.
+        """
+        if not session.container_id:
+            return
+
+        proxy_url = f"http://{self.config.proxy_ip}:8443"
+
+        try:
+            container = docker_client.containers.get(session.container_id)
+
+            activate_cmd = (
+                f"export http_proxy={proxy_url} && "
+                f"export https_proxy={proxy_url} && "
+                f"export HTTP_PROXY={proxy_url} && "
+                f"export HTTPS_PROXY={proxy_url} && "
+                f"echo 'export http_proxy={proxy_url}' >> /home/admin/.bashrc && "
+                f"echo 'export https_proxy={proxy_url}' >> /home/admin/.bashrc && "
+                f"echo 'export HTTP_PROXY={proxy_url}' >> /home/admin/.bashrc && "
+                f"echo 'export HTTPS_PROXY={proxy_url}' >> /home/admin/.bashrc && "
+                f"echo 'export http_proxy={proxy_url}' >> /home/admin/.profile && "
+                f"echo 'export https_proxy={proxy_url}' >> /home/admin/.profile && "
+                f"echo 'export HTTP_PROXY={proxy_url}' >> /home/admin/.profile && "
+                f"echo 'export HTTPS_PROXY={proxy_url}' >> /home/admin/.profile"
+            )
+
+            container.exec_run(
+                cmd=["bash", "-c", activate_cmd],
+                user="root",
+            )
+
+            logger.warning(f"L4 PUPPETEER proxy activated on container {session.container_id[:12]}")
+
+        except Exception as e:
+            logger.error(f"Failed to activate L4 on {session.container_id[:12]}: {e}")
+
     def register_session_ip(self, container_ip: str, session_id: str):
         """Write IP→session mapping for proxy correlation."""
         os.makedirs(os.path.dirname(self._session_map_path), exist_ok=True)

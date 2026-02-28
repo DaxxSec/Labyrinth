@@ -359,7 +359,7 @@ class LabyrinthOrchestrator:
             # L4: Inject CA cert into new container
             inject_ca_cert(self.docker_client, container_id)
 
-            # L3: Activate blindfold on the new container if just triggered
+            # L3+L4: Activate blindfold and proxy interception together
             if l3_newly_activated:
                 self.l3.activate(self.docker_client, session)
                 _log_forensic_event(session_id, 3, "blindfold_activated", {
@@ -367,6 +367,15 @@ class LabyrinthOrchestrator:
                     "depth": session.depth,
                 })
                 logger.warning(f"L3 BLINDFOLD activated on {session.session_id}")
+
+                # L4: Activate proxy routing so outbound API calls are intercepted
+                self.l4.activate(self.docker_client, session)
+                _log_forensic_event(session_id, 4, "proxy_interception_activated", {
+                    "container_id": container_id,
+                    "proxy_ip": self.config.layer4.proxy_ip,
+                    "depth": session.depth,
+                })
+                logger.warning(f"L4 PUPPETEER proxy activated on {session.session_id}")
 
             _log_forensic_event(session_id, 2, "depth_increase", {
                 "new_depth": session.depth,
@@ -381,7 +390,7 @@ class LabyrinthOrchestrator:
             )
 
     def _activate_l3(self, session):
-        """Activate Layer 3 blindfold on a session's container."""
+        """Activate Layer 3 blindfold + Layer 4 proxy on a session's container."""
         if session.l3_active:
             return  # Already active
         session.l3_active = True
@@ -393,6 +402,15 @@ class LabyrinthOrchestrator:
                 "depth": session.depth,
             })
             logger.warning(f"L3 BLINDFOLD activated on {session.session_id}")
+
+            # L4: Activate proxy routing alongside L3
+            self.l4.activate(self.docker_client, session)
+            _log_forensic_event(session.session_id, 4, "proxy_interception_activated", {
+                "container_id": session.container_id,
+                "proxy_ip": self.config.layer4.proxy_ip,
+                "depth": session.depth,
+            })
+            logger.warning(f"L4 PUPPETEER proxy activated on {session.session_id}")
 
     def on_session_end(self, session_id: str):
         """Clean up after a session terminates."""

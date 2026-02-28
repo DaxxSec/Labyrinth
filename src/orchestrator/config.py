@@ -36,7 +36,7 @@ class Layer3Config:
 @dataclass
 class Layer4Config:
     mode: str = "auto"  # auto | manual
-    default_swap: str = "passive"  # passive | extract | double_agent
+    default_swap: str = "passive"  # passive | neutralize | double_agent | counter_intel
     log_original_prompts: bool = True
     proxy_ip: str = "172.30.0.50"
     proxy_port: int = 8443

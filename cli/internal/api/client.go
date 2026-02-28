@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -116,6 +117,40 @@ func (c *Client) ResetSessions() (*ResetResponse, error) {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// FetchL4Mode retrieves the current L4 interceptor mode from /api/l4/mode.
+func (c *Client) FetchL4Mode() (L4ModeResponse, error) {
+	var resp L4ModeResponse
+	if err := c.getJSON("/api/l4/mode", &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// SetL4Mode changes the L4 interceptor mode via POST /api/l4/mode.
+func (c *Client) SetL4Mode(mode string) error {
+	body := fmt.Sprintf(`{"mode":"%s"}`, mode)
+	resp, err := c.httpClient.Post(c.baseURL+"/api/l4/mode", "application/json",
+		strings.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("set mode failed (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// FetchL4Intel retrieves captured intelligence from /api/l4/intel.
+func (c *Client) FetchL4Intel() ([]L4IntelSummary, error) {
+	var resp L4IntelResponse
+	if err := c.getJSON("/api/l4/intel", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Intel, nil
 }
 
 func (c *Client) postJSON(path string, target interface{}) error {

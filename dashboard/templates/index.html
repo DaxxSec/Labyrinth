@@ -117,6 +117,16 @@
     <span id="mode-badge" class="badge" style="margin-left: 8px; padding: 4px 10px; font-size: 11px;">DEV</span>
     <span id="env-name" style="color: #8b949e; font-size: 12px; margin-left: 8px;"></span>
     <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #484f58; font-size: 10px; text-transform: uppercase;">L4:</span>
+        <select id="l4-mode-selector" style="background: #0d1117; color: #c9d1d9; border: 1px solid #1a1a2e; border-radius: 4px; padding: 4px 8px; font-family: inherit; font-size: 11px;" onchange="setL4Mode(this.value)">
+          <option value="passive">Passive</option>
+          <option value="counter_intel">Counter-Intel</option>
+          <option value="neutralize">Neutralize</option>
+          <option value="double_agent">Double Agent</option>
+        </select>
+        <span id="l4-mode-badge" class="badge" style="padding: 3px 8px; font-size: 10px; background: #484f5830; color: #484f58;">PASSIVE</span>
+      </div>
       <select id="env-selector" style="background: #0d1117; color: #c9d1d9; border: 1px solid #1a1a2e; border-radius: 4px; padding: 4px 8px; font-family: inherit; font-size: 11px; display: none;" onchange="switchEnvironment(this.value)">
         <option value="">This Environment</option>
       </select>
@@ -452,10 +462,50 @@
       refresh();
     }
 
+    // L4 mode management
+    const l4ModeColors = {
+      passive: {bg: '#484f5830', fg: '#484f58', label: 'PASSIVE'},
+      neutralize: {bg: '#00ff8830', fg: '#00ff88', label: 'NEUTRALIZE'},
+      double_agent: {bg: '#ff336630', fg: '#ff3366', label: 'DOUBLE AGENT'},
+      counter_intel: {bg: '#ffaa0030', fg: '#ffaa00', label: 'COUNTER-INTEL'},
+    };
+
+    async function loadL4Mode() {
+      try {
+        const resp = await fetch((apiBase || '') + '/api/l4/mode');
+        const data = await resp.json();
+        const mode = data.mode || 'passive';
+        const badge = document.getElementById('l4-mode-badge');
+        const selector = document.getElementById('l4-mode-selector');
+        const colors = l4ModeColors[mode] || l4ModeColors.passive;
+        badge.textContent = colors.label;
+        badge.style.background = colors.bg;
+        badge.style.color = colors.fg;
+        selector.value = mode;
+      } catch(e) {
+        console.log('L4 mode fetch error:', e);
+      }
+    }
+
+    async function setL4Mode(mode) {
+      try {
+        await fetch((apiBase || '') + '/api/l4/mode', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({mode: mode}),
+        });
+        loadL4Mode();
+      } catch(e) {
+        console.log('L4 mode set error:', e);
+      }
+    }
+
     loadIdentity();
+    loadL4Mode();
     discoverEnvironments();
     refresh();
     setInterval(refresh, 3000);
+    setInterval(loadL4Mode, 10000);  // refresh L4 mode every 10s
   </script>
 </body>
 </html>

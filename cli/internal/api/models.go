@@ -112,3 +112,30 @@ type ResetResponse struct {
 	FilesCleared      int      `json:"files_cleared"`
 	Errors            []string `json:"errors"`
 }
+
+// L4ModeResponse holds the current L4 interceptor mode.
+type L4ModeResponse struct {
+	Mode       string   `json:"mode"`
+	ValidModes []string `json:"valid_modes"`
+}
+
+// L4IntelSummary holds intelligence summary for a session.
+type L4IntelSummary struct {
+	SessionID      string   `json:"session_id,omitempty"`
+	InterceptCount int      `json:"intercept_count"`
+	FirstSeen      string   `json:"first_seen"`
+	LastSeen       string   `json:"last_seen"`
+	APIKeys        []string `json:"api_keys"`
+	KeyType        string   `json:"key_type"`
+	Models         []string `json:"models"`
+	UserAgent      string   `json:"user_agent"`
+	OpenAIOrg      string   `json:"openai_org,omitempty"`
+	OpenAIProject  string   `json:"openai_project,omitempty"`
+	ToolCount      int      `json:"tool_count"`
+	Domains        []string `json:"domains"`
+}
+
+// L4IntelResponse holds the list of intelligence reports.
+type L4IntelResponse struct {
+	Intel []L4IntelSummary `json:"intel"`
+}

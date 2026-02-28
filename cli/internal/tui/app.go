@@ -68,6 +68,10 @@ type App struct {
 	envSelectorOpen  bool              // whether env selector bar is visible
 	multiClient      *api.MultiClient  // for aggregated "All" view
 	targetEnvName    string            // --env flag target
+
+	// L4 mode control
+	l4Mode           string            // current L4 mode (passive/neutralize/double_agent/counter_intel)
+	l4Intel          []api.L4IntelSummary // captured intelligence summaries
 }
 
 // Messages
@@ -106,6 +110,17 @@ type promptsMsg struct {
 	prompts []api.CapturedPrompt
 	err     error
 }
+type l4ModeMsg struct {
+	mode string
+	err  error
+}
+type l4IntelMsg struct {
+	intel []api.L4IntelSummary
+	err   error
+}
+type l4ModeSetMsg struct {
+	err error
+}
 
 // NewApp creates a new TUI app. If targetEnv is non-empty, the TUI starts
 // focused on that environment.
@@ -117,6 +132,7 @@ func NewApp(targetEnv ...string) *App {
 		layerStatuses: defaultLayerStatuses(),
 		selectedEnv:   -1,
 		dashboardURLs: make(map[string]string),
+		l4Mode:        "passive",
 	}
 	if len(targetEnv) > 0 && targetEnv[0] != "" {
 		a.targetEnvName = targetEnv[0]
@@ -139,6 +155,7 @@ func (a *App) Init() tea.Cmd {
 		tickCmd(),
 		fetchDataCmd(a.apiClient, a.fileReader),
 		fetchEnvsCmd(),
+		fetchL4ModeCmd(a.apiClient),
 	)
 }
 
@@ -228,6 +245,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.activeTab == TabLogs {
 				a.cycleLogFilter()
 			}
+		case "m":
+			// Cycle L4 mode
+			return a, a.cycleL4ModeCmd()
 		}
 
 	case tea.WindowSizeMsg:
@@ -323,6 +343,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			a.prompts = msg.prompts
 		}
+
+	case l4ModeMsg:
+		if msg.err == nil {
+			a.l4Mode = msg.mode
+		}
+
+	case l4IntelMsg:
+		if msg.err == nil {
+			a.l4Intel = msg.intel
+		}
+
+	case l4ModeSetMsg:
+		if msg.err == nil {
+			// Refresh mode after set
+			return a, fetchL4ModeCmd(a.apiClient)
+		}
 	}
 
 	return a, nil
@@ -406,12 +442,18 @@ func (a *App) renderHeader() string {
 		envLabel = StyleSubtle.Render(fmt.Sprintf(" %s ", a.activeEnvName))
 	}
 
+	// L4 mode badge
+	l4Badge := a.l4ModeBadge()
+
 	leftPart := title
 	if badge != "" {
 		leftPart = leftPart + " " + badge
 	}
 	if envLabel != "" {
 		leftPart = leftPart + " " + envLabel
+	}
+	if l4Badge != "" {
+		leftPart = leftPart + " " + l4Badge
 	}
 
 	padding := a.width - lipgloss.Width(leftPart) - lipgloss.Width(sourceLabel) - 4
@@ -420,6 +462,34 @@ func (a *App) renderHeader() string {
 	}
 
 	return fmt.Sprintf("┌─%s%s%s─┐", leftPart, strings.Repeat("─", padding), sourceLabel)
+}
+
+func (a *App) l4ModeBadge() string {
+	modeLabels := map[string]string{
+		"passive":       "L4:PASSIVE",
+		"neutralize":    "L4:NEUTRALIZE",
+		"double_agent":  "L4:DOUBLE_AGENT",
+		"counter_intel": "L4:COUNTER_INTEL",
+	}
+
+	label, ok := modeLabels[a.l4Mode]
+	if !ok {
+		label = "L4:" + a.l4Mode
+	}
+
+	var style lipgloss.Style
+	switch a.l4Mode {
+	case "neutralize":
+		style = lipgloss.NewStyle().Foreground(ColorGreen).Bold(true)
+	case "double_agent":
+		style = lipgloss.NewStyle().Foreground(ColorRed).Bold(true)
+	case "counter_intel":
+		style = lipgloss.NewStyle().Foreground(ColorYellow).Bold(true)
+	default:
+		style = lipgloss.NewStyle().Foreground(ColorDim).Bold(true)
+	}
+
+	return style.Render("[" + label + "]")
 }
 
 func (a *App) renderTabBar() string {
@@ -437,7 +507,7 @@ func (a *App) renderTabBar() string {
 }
 
 func (a *App) renderHelp() string {
-	base := "  [Tab] switch  [1-5] direct  [r] refresh  [q] quit"
+	base := "  [Tab] switch  [1-5] direct  [m] L4 mode  [r] refresh  [q] quit"
 	if len(a.environments) > 1 {
 		base += "  [e] env"
 	}
@@ -477,9 +547,12 @@ func (a *App) tabFetchCmd() tea.Cmd {
 		if a.sessionView == 1 {
 			cmds = append(cmds, a.fetchSessionDetailCmd())
 		}
+	case TabLayers:
+		cmds = append(cmds, fetchL4ModeCmd(a.apiClient))
 	case TabAnalysis:
 		cmds = append(cmds, fetchPromptsCmd(a.apiClient, a.fileReader))
 		cmds = append(cmds, fetchEventsCmd(a.apiClient, a.fileReader))
+		cmds = append(cmds, fetchL4IntelCmd(a.apiClient))
 	}
 
 	if len(cmds) == 0 {
@@ -688,6 +761,49 @@ func (a *App) prevEnv() {
 		a.selectedEnv = len(a.environments) - 1
 	}
 	a.switchEnvironment()
+}
+
+// L4 mode commands
+
+var l4Modes = []string{"passive", "neutralize", "double_agent", "counter_intel"}
+
+func (a *App) cycleL4ModeCmd() tea.Cmd {
+	current := a.l4Mode
+	next := l4Modes[0]
+	for i, m := range l4Modes {
+		if m == current {
+			next = l4Modes[(i+1)%len(l4Modes)]
+			break
+		}
+	}
+	client := a.apiClient
+	return func() tea.Msg {
+		err := client.SetL4Mode(next)
+		return l4ModeSetMsg{err: err}
+	}
+}
+
+func fetchL4ModeCmd(client *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		if !client.Healthy() {
+			return l4ModeMsg{mode: "passive", err: fmt.Errorf("not connected")}
+		}
+		resp, err := client.FetchL4Mode()
+		if err != nil {
+			return l4ModeMsg{err: err}
+		}
+		return l4ModeMsg{mode: resp.Mode}
+	}
+}
+
+func fetchL4IntelCmd(client *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		if !client.Healthy() {
+			return l4IntelMsg{err: fmt.Errorf("not connected")}
+		}
+		intel, err := client.FetchL4Intel()
+		return l4IntelMsg{intel: intel, err: err}
+	}
 }
 
 func min(a, b int) int {
