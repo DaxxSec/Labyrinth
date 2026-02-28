@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════════════════════════════
+#  LABYRINTH — Gitleaks Configuration
+#
+#  This project is a honeypot that intentionally generates fake
+#  credentials (AWS keys, Stripe keys, API tokens, etc.) as bait
+#  for attacker agents. These are NOT real secrets.
+# ═══════════════════════════════════════════════════════════════
+
+title = "LABYRINTH gitleaks config"
+
+# ── Allowlist paths that generate intentional bait ────────────
+#
+# These files create fake credentials by design:
+#   - http_honeypot.py: randomized identity per container boot
+#   - bait.go: randomized bait planted by `labyrinth bait drop`
+#   - attacker_agents.go: PentAGI default login shown in output
+
+[allowlist]
+description = "Honeypot bait — intentionally fake credentials"
+paths = [
+    '''src/layer1_portal/http_honeypot\.py''',
+    '''cli/cmd/bait\.go''',
+    '''cli/cmd/attacker_agents\.go''',
+    '''cli/cmd/attacker\.go''',
+    '''docker/honeypot-http\.Dockerfile''',
+    '''configs/.*\.ya?ml''',
+    '''docs/.*\.md''',
+    '''.*wiki.*\.md''',
+]
+
+# ── Per-rule allowlists for bait patterns ─────────────────────
+
+[[rules]]
+id = "labyrinth-bait-aws-key"
+description = "Honeypot bait AWS access key ID (AKIA prefix)"
+regex = '''AKIA[0-9A-Fa-f]{16}'''
+[rules.allowlist]
+description = "Intentional bait — not a real AWS key"
+regexTarget = "match"
+regexes = ['''AKIA[0-9A-Fa-f]{16}''']
+
+[[rules]]
+id = "labyrinth-bait-stripe-key"
+description = "Honeypot bait Stripe secret key"
+regex = '''sk_live_[0-9a-f]{16,48}'''
+[rules.allowlist]
+description = "Intentional bait — not a real Stripe key"
+regexTarget = "match"
+regexes = ['''sk_live_[0-9a-f]{16,48}''']
+
+[[rules]]
+id = "labyrinth-bait-slack-webhook"
+description = "Honeypot bait Slack webhook URL"
+regex = '''hooks\.slack\.com/services/T[0-9A-Fa-f]+/B[0-9A-Fa-f]+/[0-9A-Fa-f]+'''
+[rules.allowlist]
+description = "Intentional bait — not a real Slack webhook"
+regexTarget = "match"
+regexes = ['''hooks\.slack\.com/services/T[0-9A-Fa-f]+/B[0-9A-Fa-f]+/[0-9A-Fa-f]+''']
+
+[[rules]]
+id = "labyrinth-bait-generic-api-key"
+description = "Honeypot bait API key (sk- prefix)"
+regex = '''sk-[0-9a-f]{16,48}'''
+[rules.allowlist]
+description = "Intentional bait — not a real API key"
+regexTarget = "match"
+regexes = ['''sk-[0-9a-f]{16,48}''']
+
+[[rules]]
+id = "labyrinth-bait-jwt-secret"
+description = "Honeypot bait JWT secret"
+regex = '''JWT_SECRET=[0-9a-f]{16,64}'''
+[rules.allowlist]
+description = "Intentional bait — not a real JWT secret"
+regexTarget = "match"
+regexes = ['''JWT_SECRET=[0-9a-f]{16,64}''']
+
+[[rules]]
+id = "labyrinth-bait-password"
+description = "Honeypot bait password in env/config"
+regex = '''(SSH_PASS|DB_PASS|password)=\w+'''
+[rules.allowlist]
+description = "Intentional bait — not a real password"
+paths = [
+    '''src/layer1_portal/http_honeypot\.py''',
+    '''cli/cmd/bait\.go''',
+]
