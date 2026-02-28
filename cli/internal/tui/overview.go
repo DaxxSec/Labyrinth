@@ -80,10 +80,18 @@ func renderStatsCards(a *App) string {
 	b.WriteString(StyleValuePurple.Render(fmt.Sprintf("%d", a.stats.TotalEvents)))
 	b.WriteString("\n")
 
-	// Mini sparkline (static representation for now)
-	if a.stats.TotalEvents > 0 {
-		b.WriteString("\n")
-		b.WriteString(StyleDim.Render("▂▃▅▇▅▃▂▃▅▇ conn/min"))
+	b.WriteString(StyleCardLabel.Render("AUTH ATTEMPTS: "))
+	b.WriteString(lipgloss.NewStyle().Foreground(ColorYellow).Bold(true).Render(fmt.Sprintf("%d", a.stats.AuthAttempts)))
+	b.WriteString("\n")
+
+	b.WriteString(StyleCardLabel.Render("CONTAINERS: "))
+	containerCount := a.stats.ActiveContainers
+	if a.containers != nil {
+		containerCount = len(a.containers.Infrastructure) + len(a.containers.Sessions)
+	}
+	b.WriteString(StyleValueCyan.Render(fmt.Sprintf("%d", containerCount)))
+	if a.containers != nil && len(a.containers.Sessions) > 0 {
+		b.WriteString(StyleDim.Render(fmt.Sprintf(" (%d session)", len(a.containers.Sessions))))
 	}
 
 	return b.String()
@@ -94,34 +102,79 @@ func renderServiceTable(a *App) string {
 
 	headerStyle := StyleBold
 	b.WriteString(fmt.Sprintf("  %s\n",
-		headerStyle.Render(fmt.Sprintf("%-22s %-12s %-10s %s", "SERVICE", "STATUS", "LAYER", "PORTS"))))
+		headerStyle.Render(fmt.Sprintf("%-24s %-14s %-10s %s", "SERVICE", "STATUS", "LAYER", "PORTS"))))
 	b.WriteString(fmt.Sprintf("  %s\n",
-		StyleDim.Render(fmt.Sprintf("%-22s %-12s %-10s %s", "──────────────────────", "────────────", "──────────", "─────────────"))))
+		StyleDim.Render(fmt.Sprintf("%-24s %-14s %-10s %s", "────────────────────────", "──────────────", "──────────", "─────────────"))))
 
-	services := []struct {
-		name   string
-		layer  string
-		ports  string
-		status string
-	}{
-		{"labyrinth-ssh", "L1", "2222:22", "running"},
-		{"labyrinth-http", "L1", "8080:80", "running"},
-		{"labyrinth-orchestrator", "orch", "-", "running"},
-		{"labyrinth-proxy", "L4", "-", "running"},
-		{"labyrinth-dashboard", "dash", "9000:9000", "running"},
-	}
+	// Use real container data if available
+	if a.containers != nil && len(a.containers.Infrastructure) > 0 {
+		for _, c := range a.containers.Infrastructure {
+			statusIcon := "●"
+			statusStyle := StyleStatusRunning
+			statusText := c.State
+			if c.State != "running" {
+				statusIcon = "○"
+				statusStyle = StyleStatusStopped
+				statusText = c.State
+			}
 
-	for _, svc := range services {
-		statusStr := StyleStatusRunning.Render(svc.status)
-		if a.dataSource == SourceNone {
-			statusStr = StyleDim.Render("unknown")
+			layerStr := c.Layer
+			if layerStr == "" {
+				layerStr = "-"
+			}
+
+			b.WriteString(fmt.Sprintf("  %-24s %s  %-10s %s\n",
+				StyleValueCyan.Render(truncate(c.Name, 22)),
+				statusStyle.Render(fmt.Sprintf("%s %-10s", statusIcon, statusText)),
+				StyleSubtle.Render(layerStr),
+				StyleDim.Render(c.Ports),
+			))
 		}
-		b.WriteString(fmt.Sprintf("  %-22s %s  %-10s %s\n",
-			StyleValueCyan.Render(svc.name),
-			statusStr,
-			StyleSubtle.Render(svc.layer),
-			StyleDim.Render(svc.ports),
-		))
+
+		// Session containers
+		if len(a.containers.Sessions) > 0 {
+			b.WriteString("\n")
+			b.WriteString(StyleSubtle.Render(fmt.Sprintf("  Session Containers (%d):\n", len(a.containers.Sessions))))
+			for _, c := range a.containers.Sessions {
+				statusIcon := "●"
+				statusStyle := StyleStatusRunning
+				if c.State != "running" {
+					statusIcon = "○"
+					statusStyle = StyleStatusStopped
+				}
+				b.WriteString(fmt.Sprintf("  %-24s %s\n",
+					StyleDim.Render(truncate(c.Name, 22)),
+					statusStyle.Render(fmt.Sprintf("%s %s", statusIcon, c.State)),
+				))
+			}
+		}
+	} else {
+		// Fallback to static service list
+		services := []struct {
+			name   string
+			layer  string
+			ports  string
+			status string
+		}{
+			{"labyrinth-ssh", "L1", "2222:22", "running"},
+			{"labyrinth-http", "L1", "8080:80", "running"},
+			{"labyrinth-orchestrator", "orch", "-", "running"},
+			{"labyrinth-proxy", "L4", "-", "running"},
+			{"labyrinth-dashboard", "dash", "9000:9000", "running"},
+		}
+
+		for _, svc := range services {
+			statusStr := StyleStatusRunning.Render("● " + svc.status)
+			if a.dataSource == SourceNone {
+				statusStr = StyleDim.Render("○ unknown")
+			}
+			b.WriteString(fmt.Sprintf("  %-24s %-14s %-10s %s\n",
+				StyleValueCyan.Render(svc.name),
+				statusStr,
+				StyleSubtle.Render(svc.layer),
+				StyleDim.Render(svc.ports),
+			))
+		}
 	}
 
 	return b.String()

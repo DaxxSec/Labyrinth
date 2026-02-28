@@ -10,8 +10,13 @@ import (
 )
 
 func renderSessions(a *App, height int) string {
-	if len(a.sessions) == 0 {
+	if len(a.sessions) == 0 && len(a.authEvents) == 0 {
 		return renderEmptySessions()
+	}
+
+	// Detail view — full event timeline
+	if a.sessionView == 1 && a.sessionDetail != nil {
+		return renderSessionTimeline(a, height)
 	}
 
 	listWidth := a.width/2 - 1
@@ -21,7 +26,7 @@ func renderSessions(a *App, height int) string {
 	}
 
 	list := renderSessionList(a, listWidth, height)
-	detail := renderSessionDetail(a, detailWidth, height)
+	detail := renderSessionSidePanel(a, detailWidth, height)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, list, " │ ", detail)
 }
@@ -42,11 +47,15 @@ func renderSessionList(a *App, width, height int) string {
 	b.WriteString(StyleBold.Render(header))
 	b.WriteString("\n")
 
-	headerLine := fmt.Sprintf("  %-18s %-8s %s", "ID", "EVENTS", "LAST")
+	headerLine := fmt.Sprintf("  %-18s %-8s %-6s %s", "ID", "EVENTS", "DEPTH", "LAST")
 	b.WriteString(StyleSubtle.Render(headerLine))
 	b.WriteString("\n")
 
 	maxRows := height - 4
+	// Reserve space for auth captures
+	if len(a.authEvents) > 0 {
+		maxRows -= min(len(a.authEvents)+3, 8)
+	}
 	if maxRows < 1 {
 		maxRows = 1
 	}
@@ -63,19 +72,52 @@ func renderSessionList(a *App, width, height int) string {
 			nameStyle = StyleValueGreen
 		}
 
-		name := truncate(sess.File, 16)
-		b.WriteString(fmt.Sprintf("%s%-18s %-8d %s\n",
+		name := truncate(strings.TrimSuffix(sess.File, ".jsonl"), 16)
+		depth := extractDepth(sess.Last)
+		depthStr := "-"
+		if depth > 0 {
+			depthStr = fmt.Sprintf("%d", depth)
+		}
+
+		b.WriteString(fmt.Sprintf("%s%-18s %-8d %-6s %s\n",
 			prefix,
 			nameStyle.Render(name),
 			sess.Events,
-			StyleDim.Render(truncate(extractTimestamp(sess.Last), 20)),
+			StyleValuePurple.Render(depthStr),
+			StyleDim.Render(truncate(extractTimestamp(sess.Last), 12)),
 		))
+	}
+
+	// Auth captures section
+	if len(a.authEvents) > 0 {
+		b.WriteString("\n")
+		b.WriteString(StyleBold.Render(fmt.Sprintf(" Credentials (%d)", len(a.authEvents))))
+		b.WriteString("\n")
+
+		maxAuth := min(len(a.authEvents), 5)
+		for i := 0; i < maxAuth; i++ {
+			auth := a.authEvents[i]
+			svc := truncate(auth.Service, 4)
+			user := truncate(auth.Username, 12)
+			pass := "****"
+			if auth.Password != "" {
+				pass = truncate(auth.Password, 8)
+			}
+			ip := truncate(auth.SrcIP, 15)
+
+			b.WriteString(fmt.Sprintf("  %s %s:%s %s\n",
+				StyleDim.Render(svc),
+				StyleValueCyan.Render(user),
+				StyleValueRed.Render(pass),
+				StyleDim.Render(ip),
+			))
+		}
 	}
 
 	return b.String()
 }
 
-func renderSessionDetail(a *App, width, height int) string {
+func renderSessionSidePanel(a *App, width, height int) string {
 	var b strings.Builder
 
 	if a.selectedSession >= len(a.sessions) {
@@ -88,6 +130,17 @@ func renderSessionDetail(a *App, width, height int) string {
 
 	b.WriteString(StyleCardLabel.Render("  Events: "))
 	b.WriteString(StyleValueCyan.Render(fmt.Sprintf("%d", sess.Events)))
+	b.WriteString("\n")
+
+	depth := extractDepth(sess.Last)
+	if depth > 0 {
+		b.WriteString(StyleCardLabel.Render("  Max Depth: "))
+		b.WriteString(StyleValuePurple.Render(fmt.Sprintf("%d", depth)))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+
+	b.WriteString(StyleSubtle.Render("  Press [Enter] for full timeline"))
 	b.WriteString("\n\n")
 
 	// Try to parse the last event for detail
@@ -122,6 +175,105 @@ func renderSessionDetail(a *App, width, height int) string {
 	}
 
 	return b.String()
+}
+
+func renderSessionTimeline(a *App, height int) string {
+	var b strings.Builder
+
+	d := a.sessionDetail
+
+	// Header
+	b.WriteString("\n")
+	b.WriteString(StyleBold.Render(fmt.Sprintf("  %s", d.SessionID)))
+
+	// Summary line
+	duration := ""
+	if d.FirstSeen != "" && d.LastSeen != "" {
+		duration = fmt.Sprintf("  %s → %s", d.FirstSeen, d.LastSeen)
+	}
+
+	l3Str := "inactive"
+	if d.L3Activated {
+		l3Str = StyleValueRed.Render("active")
+	}
+
+	b.WriteString(StyleDim.Render(fmt.Sprintf("  Max Depth: %d  L3: %s%s",
+		d.MaxDepth, l3Str, duration)))
+	b.WriteString("\n")
+
+	// Layers triggered
+	if len(d.LayersTriggered) > 0 {
+		var layerBadges []string
+		for _, l := range d.LayersTriggered {
+			style := getLayerStyle(l)
+			layerBadges = append(layerBadges, style.Render(fmt.Sprintf("L%d", l)))
+		}
+		b.WriteString(StyleCardLabel.Render("  Layers: "))
+		b.WriteString(strings.Join(layerBadges, " "))
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  %s\n",
+		StyleSubtle.Render(fmt.Sprintf("%-10s %-4s %-24s %s", "TIME", "L", "EVENT", "DETAILS"))))
+	b.WriteString(fmt.Sprintf("  %s\n",
+		StyleDim.Render(strings.Repeat("─", a.width-4))))
+
+	maxLines := height - 8
+	if maxLines < 1 {
+		maxLines = 10
+	}
+
+	for i, ev := range d.Events {
+		if i >= maxLines {
+			remaining := len(d.Events) - i
+			b.WriteString(StyleDim.Render(fmt.Sprintf("  ... %d more events\n", remaining)))
+			break
+		}
+
+		ts := ev.Timestamp
+		if len(ts) > 11 {
+			ts = ts[11:]
+		}
+		if len(ts) > 8 {
+			ts = ts[:8]
+		}
+
+		lStyle := getLayerStyle(ev.Layer)
+		details := formatEventData(ev.Data)
+
+		b.WriteString(fmt.Sprintf("  %-10s %s  %-24s %s\n",
+			StyleDim.Render(ts),
+			lStyle.Render(fmt.Sprintf("L%d", ev.Layer)),
+			lStyle.Render(truncate(ev.Event, 22)),
+			StyleDim.Render(truncate(details, maxInt(1, a.width-48))),
+		))
+	}
+
+	// Show prompt if available
+	if d.HasPrompts && d.PromptText != "" {
+		b.WriteString("\n")
+		b.WriteString(StyleValueRed.Render("  Captured Prompt:"))
+		b.WriteString("\n")
+		preview := truncate(d.PromptText, 200)
+		b.WriteString(StyleDim.Render(fmt.Sprintf("  %s\n", preview)))
+	}
+
+	return b.String()
+}
+
+func extractDepth(jsonLine string) int {
+	var ev struct {
+		Data map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(jsonLine), &ev); err == nil && ev.Data != nil {
+		if d, ok := ev.Data["depth"]; ok {
+			if depth, ok := d.(float64); ok {
+				return int(depth)
+			}
+		}
+	}
+	return 0
 }
 
 func truncate(s string, maxLen int) string {

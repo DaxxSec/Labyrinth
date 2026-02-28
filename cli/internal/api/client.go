@@ -52,6 +52,63 @@ func (c *Client) FetchSessions() ([]SessionEntry, error) {
 	return sessions, nil
 }
 
+// FetchEvents retrieves the unified event stream from /api/events.
+func (c *Client) FetchEvents(limit int) ([]ForensicEvent, error) {
+	var resp EventsResponse
+	path := fmt.Sprintf("/api/events?limit=%d", limit)
+	if err := c.getJSON(path, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Events, nil
+}
+
+// FetchAuthEvents retrieves auth capture events from /api/auth.
+func (c *Client) FetchAuthEvents(limit int) ([]AuthEvent, error) {
+	var resp AuthResponse
+	path := fmt.Sprintf("/api/auth?limit=%d", limit)
+	if err := c.getJSON(path, &resp); err != nil {
+		return nil, err
+	}
+	return resp.AuthEvents, nil
+}
+
+// FetchContainers retrieves Docker container status from /api/containers.
+func (c *Client) FetchContainers() (*ContainersResponse, error) {
+	var resp ContainersResponse
+	if err := c.getJSON("/api/containers", &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// FetchLayers retrieves layer status from /api/layers.
+func (c *Client) FetchLayers() ([]LayerStatus, error) {
+	var resp LayersResponse
+	if err := c.getJSON("/api/layers", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Layers, nil
+}
+
+// FetchSessionDetail retrieves full event timeline for one session.
+func (c *Client) FetchSessionDetail(sessionID string) (*SessionDetail, error) {
+	var detail SessionDetail
+	path := fmt.Sprintf("/api/sessions/%s", sessionID)
+	if err := c.getJSON(path, &detail); err != nil {
+		return nil, err
+	}
+	return &detail, nil
+}
+
+// FetchPrompts retrieves captured AI prompts from /api/prompts.
+func (c *Client) FetchPrompts() ([]CapturedPrompt, error) {
+	var resp PromptsResponse
+	if err := c.getJSON("/api/prompts", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Prompts, nil
+}
+
 func (c *Client) getJSON(path string, target interface{}) error {
 	resp, err := c.httpClient.Get(c.baseURL + path)
 	if err != nil {

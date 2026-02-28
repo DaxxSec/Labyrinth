@@ -2,9 +2,15 @@ package api
 
 // Stats matches the /api/stats response from the dashboard.
 type Stats struct {
-	ActiveSessions int `json:"active_sessions"`
+	ActiveSessions  int `json:"active_sessions"`
 	CapturedPrompts int `json:"captured_prompts"`
-	TotalEvents    int `json:"total_events"`
+	TotalEvents     int `json:"total_events"`
+	AuthAttempts    int `json:"auth_attempts"`
+	HTTPRequests    int `json:"http_requests"`
+	L3Activations   int `json:"l3_activations"`
+	L4Interceptions int `json:"l4_interceptions"`
+	MaxDepthReached int `json:"max_depth_reached"`
+	ActiveContainers int `json:"active_containers"`
 }
 
 // SessionEntry matches the /api/sessions response entries.
@@ -21,4 +27,80 @@ type ForensicEvent struct {
 	Layer     int                    `json:"layer"`
 	Event     string                 `json:"event"`
 	Data      map[string]interface{} `json:"data,omitempty"`
+	Source    string                 `json:"source,omitempty"`
+}
+
+// AuthEvent represents a credential capture from auth_events.jsonl.
+type AuthEvent struct {
+	Timestamp string `json:"timestamp"`
+	Service   string `json:"service"`
+	SrcIP     string `json:"src_ip"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Event     string `json:"event,omitempty"`
+}
+
+// ContainerStatus represents a Docker container's status.
+type ContainerStatus struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	State  string `json:"state"`
+	Ports  string `json:"ports"`
+	Layer  string `json:"layer"`
+}
+
+// ContainersResponse holds infrastructure and session containers.
+type ContainersResponse struct {
+	Infrastructure []ContainerStatus `json:"infrastructure"`
+	Sessions       []ContainerStatus `json:"sessions"`
+}
+
+// LayerStatus represents the live status of a LABYRINTH layer.
+type LayerStatus struct {
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Detail   string `json:"detail"`
+	Sessions int    `json:"sessions"`
+}
+
+// SessionDetail holds the full event timeline for a single session.
+type SessionDetail struct {
+	SessionID       string         `json:"session_id"`
+	Events          []ForensicEvent `json:"events"`
+	MaxDepth        int            `json:"max_depth"`
+	L3Activated     bool           `json:"l3_activated"`
+	LayersTriggered []int          `json:"layers_triggered"`
+	FirstSeen       string         `json:"first_seen"`
+	LastSeen        string         `json:"last_seen"`
+	HasPrompts      bool           `json:"has_prompts"`
+	PromptText      string         `json:"prompt_text"`
+}
+
+// CapturedPrompt represents a single captured AI system prompt.
+type CapturedPrompt struct {
+	SessionID string `json:"session_id"`
+	Timestamp string `json:"timestamp"`
+	Domain    string `json:"domain"`
+	Text      string `json:"text"`
+}
+
+// EventsResponse holds a paginated event list.
+type EventsResponse struct {
+	Events []ForensicEvent `json:"events"`
+	Total  int             `json:"total"`
+}
+
+// AuthResponse holds auth event results.
+type AuthResponse struct {
+	AuthEvents []AuthEvent `json:"auth_events"`
+}
+
+// LayersResponse holds layer status results.
+type LayersResponse struct {
+	Layers []LayerStatus `json:"layers"`
+}
+
+// PromptsResponse holds captured prompt results.
+type PromptsResponse struct {
+	Prompts []CapturedPrompt `json:"prompts"`
 }

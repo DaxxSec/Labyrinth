@@ -6,28 +6,108 @@
 <title>LABYRINTH Dashboard</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a0f; color: #c9d1d9; font-family: "JetBrains Mono", "Fira Code", monospace; }
-  .header { padding: 24px 32px; border-bottom: 1px solid #1a1a2e; display: flex; align-items: center; gap: 16px; }
+  body { background: #0a0a0f; color: #c9d1d9; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 13px; }
+  .header { padding: 20px 32px; border-bottom: 1px solid #1a1a2e; display: flex; align-items: center; gap: 16px; }
   .header h1 { color: #00ff88; font-size: 20px; letter-spacing: 2px; }
   .header .status { background: #00ff8820; color: #00ff88; padding: 4px 12px; border-radius: 4px; font-size: 11px; animation: pulse 2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 24px 32px; }
-  .card { background: #0d1117; border: 1px solid #1a1a2e; border-radius: 8px; padding: 20px; }
-  .card h3 { color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .card .value { font-size: 36px; font-weight: bold; color: #00ccff; }
+
+  /* Stat cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 20px 32px; }
+  .card { background: #0d1117; border: 1px solid #1a1a2e; border-radius: 8px; padding: 16px; }
+  .card h3 { color: #8b949e; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .card .value { font-size: 32px; font-weight: bold; color: #00ccff; }
   .card.green .value { color: #00ff88; }
   .card.red .value { color: #ff3366; }
   .card.purple .value { color: #cc33ff; }
-  .sessions { padding: 0 32px 32px; }
-  .sessions h2 { color: #8b949e; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-  .session-list { background: #0d1117; border: 1px solid #1a1a2e; border-radius: 8px; overflow: hidden; }
-  .session-row { padding: 12px 16px; border-bottom: 1px solid #1a1a2e; font-size: 12px; display: flex; justify-content: space-between; }
+  .card.yellow .value { color: #ffaa00; }
+  .card.cyan .value { color: #00ccff; }
+
+  /* Main layout */
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 32px 20px; }
+  .panel { background: #0d1117; border: 1px solid #1a1a2e; border-radius: 8px; overflow: hidden; }
+  .panel-header { padding: 12px 16px; border-bottom: 1px solid #1a1a2e; font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+  .panel-body { padding: 0; }
+
+  /* Event log */
+  .event-log { max-height: 400px; overflow-y: auto; }
+  .event-log::-webkit-scrollbar { width: 6px; }
+  .event-log::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 3px; }
+  .event-row { padding: 6px 16px; border-bottom: 1px solid #0a0a0f; font-size: 11px; display: flex; gap: 12px; align-items: baseline; }
+  .event-row:last-child { border-bottom: none; }
+  .event-row .ts { color: #484f58; min-width: 70px; }
+  .event-row .layer-badge { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; min-width: 24px; text-align: center; }
+  .event-row .ev-type { color: #c9d1d9; min-width: 140px; }
+  .event-row .session { color: #00ccff; min-width: 120px; }
+  .event-row .details { color: #484f58; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Layer colors */
+  .layer-0 { background: #00ff8830; color: #00ff88; }
+  .layer-1 { background: #00ccff30; color: #00ccff; }
+  .layer-2 { background: #cc33ff30; color: #cc33ff; }
+  .layer-3 { background: #ff336630; color: #ff3366; }
+  .layer-4 { background: #ffaa0030; color: #ffaa00; }
+
+  /* Auth captures */
+  .auth-row { padding: 8px 16px; border-bottom: 1px solid #0a0a0f; font-size: 12px; display: flex; gap: 12px; align-items: center; }
+  .auth-row:last-child { border-bottom: none; }
+  .auth-row .svc-badge { background: #1a1a2e; color: #8b949e; padding: 2px 8px; border-radius: 3px; font-size: 10px; text-transform: uppercase; }
+  .auth-row .user { color: #00ccff; }
+  .auth-row .pass { color: #ff3366; cursor: pointer; filter: blur(4px); transition: filter 0.2s; }
+  .auth-row .pass:hover, .auth-row .pass.revealed { filter: none; }
+  .auth-row .ip { color: #484f58; margin-left: auto; }
+  .auth-row .ts { color: #484f58; font-size: 11px; }
+
+  /* Sessions */
+  .session-row { padding: 10px 16px; border-bottom: 1px solid #0a0a0f; font-size: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.15s; }
+  .session-row:hover { background: #1a1a2e40; }
   .session-row:last-child { border-bottom: none; }
   .session-row .name { color: #00ccff; }
+  .session-row .meta { display: flex; gap: 16px; }
   .session-row .count { color: #8b949e; }
+  .session-row .depth { color: #cc33ff; }
+
+  /* Layer status bars */
+  .layer-bar { padding: 10px 16px; border-bottom: 1px solid #0a0a0f; display: flex; align-items: center; gap: 12px; }
+  .layer-bar:last-child { border-bottom: none; }
+  .layer-bar .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .layer-bar .dot.active { background: #00ff88; box-shadow: 0 0 6px #00ff8880; }
+  .layer-bar .dot.standby { background: #484f58; }
+  .layer-bar .lname { color: #c9d1d9; font-weight: bold; font-size: 12px; min-width: 130px; }
+  .layer-bar .ldetail { color: #484f58; font-size: 11px; flex: 1; }
+  .layer-bar .lsessions { color: #8b949e; font-size: 11px; }
+
+  /* Container health */
+  .container-row { padding: 6px 16px; border-bottom: 1px solid #0a0a0f; font-size: 11px; display: flex; gap: 12px; align-items: center; }
+  .container-row:last-child { border-bottom: none; }
+  .container-row .cdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .container-row .cdot.running { background: #00ff88; }
+  .container-row .cdot.stopped { background: #ff3366; }
+  .container-row .cname { color: #00ccff; min-width: 180px; }
+  .container-row .cstatus { color: #8b949e; flex: 1; }
+  .container-row .cports { color: #484f58; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0f90; z-index: 100; justify-content: center; align-items: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: #0d1117; border: 1px solid #1a1a2e; border-radius: 12px; width: 80%; max-width: 900px; max-height: 80vh; overflow-y: auto; }
+  .modal-header { padding: 16px 24px; border-bottom: 1px solid #1a1a2e; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { color: #00ccff; font-size: 14px; }
+  .modal-close { background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; }
+  .modal-close:hover { color: #c9d1d9; }
+  .modal-body { padding: 16px 24px; }
+  .modal-meta { display: flex; gap: 24px; margin-bottom: 16px; }
+  .modal-meta span { color: #8b949e; font-size: 12px; }
+  .modal-meta .val { color: #c9d1d9; font-weight: bold; }
+  .timeline-row { padding: 4px 0; font-size: 11px; display: flex; gap: 10px; }
+  .timeline-row .tl-ts { color: #484f58; min-width: 70px; }
+  .timeline-row .tl-ev { min-width: 160px; }
+  .timeline-row .tl-detail { color: #484f58; }
+
   .empty { padding: 40px; text-align: center; color: #484f58; }
-  .empty .icon { font-size: 32px; margin-bottom: 12px; }
-  .footer { padding: 16px 32px; text-align: center; color: #484f58; font-size: 11px; border-top: 1px solid #1a1a2e; }
+  .empty .icon { font-size: 28px; margin-bottom: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+  .footer { padding: 12px 32px; text-align: center; color: #484f58; font-size: 11px; border-top: 1px solid #1a1a2e; }
 </style>
 </head>
 <body>
@@ -36,34 +116,266 @@
     <span class="status">LIVE</span>
     <span style="color: #484f58; font-size: 12px; margin-left: auto;">Test Mode Dashboard</span>
   </div>
-  <div class="grid">
-    <div class="card green"><h3>Active Sessions</h3><div class="value" id="sessions">-</div></div>
-    <div class="card red"><h3>Captured Prompts</h3><div class="value" id="prompts">-</div></div>
-    <div class="card purple"><h3>Total Events</h3><div class="value" id="events">-</div></div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="card green"><h3>Active Sessions</h3><div class="value" id="stat-sessions">-</div></div>
+    <div class="card red"><h3>Captured Prompts</h3><div class="value" id="stat-prompts">-</div></div>
+    <div class="card purple"><h3>Total Events</h3><div class="value" id="stat-events">-</div></div>
+    <div class="card yellow"><h3>Auth Attempts</h3><div class="value" id="stat-auth">-</div></div>
+    <div class="card cyan"><h3>HTTP Requests</h3><div class="value" id="stat-http">-</div></div>
+    <div class="card green"><h3>Containers</h3><div class="value" id="stat-containers">-</div></div>
   </div>
-  <div class="sessions">
-    <h2>Recent Session Activity</h2>
-    <div class="session-list" id="session-list">
-      <div class="empty"><div class="icon">&#127919;</div>Waiting for connections...<br><br><span style="color:#8b949e">Point an offensive agent at <code>localhost:2222</code> or <code>localhost:8080</code></span></div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+    <!-- Left column: Event Log + Sessions -->
+    <div>
+      <div class="panel" style="margin-bottom: 16px;">
+        <div class="panel-header">
+          <span>Event Log</span>
+          <span id="event-count" style="color: #484f58; font-size: 11px;">0 events</span>
+        </div>
+        <div class="panel-body">
+          <div class="event-log" id="event-log">
+            <div class="empty"><div class="icon">&#128640;</div>Waiting for events...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span>Sessions</span>
+          <span id="session-count" style="color: #484f58; font-size: 11px;"></span>
+        </div>
+        <div class="panel-body" id="session-list">
+          <div class="empty"><div class="icon">&#127919;</div>Waiting for connections...<br><br><span style="color:#8b949e">Point an offensive agent at <code>localhost:2222</code> or <code>localhost:8080</code></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: Auth Captures + Layers + Containers -->
+    <div>
+      <div class="panel" style="margin-bottom: 16px;">
+        <div class="panel-header">
+          <span>Auth Captures</span>
+          <span id="auth-count" style="color: #484f58; font-size: 11px;"></span>
+        </div>
+        <div class="panel-body" id="auth-list" style="max-height: 250px; overflow-y: auto;">
+          <div class="empty"><div class="icon">&#128274;</div>No credentials captured yet</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom: 16px;">
+        <div class="panel-header"><span>Layer Status</span></div>
+        <div class="panel-body" id="layer-list">
+          <div class="empty">Loading layers...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span>Container Health</span></div>
+        <div class="panel-body" id="container-list">
+          <div class="empty">Loading containers...</div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- Session Detail Modal -->
+  <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Session Detail</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
   <div class="footer">Project LABYRINTH &middot; Stephen Stewart &amp; Claude (Anthropic)</div>
+
   <script>
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function formatData(data) {
+      if (!data || typeof data !== 'object') return '';
+      return Object.entries(data).map(([k, v]) => {
+        let s = String(v);
+        if (s.length > 40) s = s.slice(0, 37) + '...';
+        return escHtml(k) + '=' + escHtml(s);
+      }).join(' ');
+    }
+
+    function layerClass(layer) {
+      const n = parseInt(layer) || 0;
+      return 'layer-' + Math.min(n, 4);
+    }
+
     async function refresh() {
       try {
-        const stats = await (await fetch("/api/stats")).json();
-        document.getElementById("sessions").textContent = stats.active_sessions;
-        document.getElementById("prompts").textContent = stats.captured_prompts;
-        document.getElementById("events").textContent = stats.total_events;
-        const sessions = await (await fetch("/api/sessions")).json();
-        const list = document.getElementById("session-list");
-        if (sessions.length > 0) {
-          list.innerHTML = sessions.map(s =>
-            '<div class="session-row"><span class="name">' + s.file + '</span><span class="count">' + s.events + ' events</span></div>'
-          ).join("");
+        const [stats, events, auth, sessions, layers, containers] = await Promise.all([
+          fetch("/api/stats").then(r => r.json()),
+          fetch("/api/events?limit=100").then(r => r.json()),
+          fetch("/api/auth?limit=30").then(r => r.json()),
+          fetch("/api/sessions").then(r => r.json()),
+          fetch("/api/layers").then(r => r.json()),
+          fetch("/api/containers").then(r => r.json()).catch(() => ({infrastructure: [], sessions: []})),
+        ]);
+
+        // Stats
+        document.getElementById("stat-sessions").textContent = stats.active_sessions;
+        document.getElementById("stat-prompts").textContent = stats.captured_prompts;
+        document.getElementById("stat-events").textContent = stats.total_events;
+        document.getElementById("stat-auth").textContent = stats.auth_attempts || 0;
+        document.getElementById("stat-http").textContent = stats.http_requests || 0;
+        document.getElementById("stat-containers").textContent = stats.active_containers || 0;
+
+        // Event log
+        const logEl = document.getElementById("event-log");
+        const wasScrolled = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 20;
+        if (events.events && events.events.length > 0) {
+          document.getElementById("event-count").textContent = events.total + ' events';
+          logEl.innerHTML = events.events.map(ev => {
+            const ts = (ev.timestamp || '').slice(11, 19);
+            const layer = ev.layer || 0;
+            const sid = ev.session_id ? escHtml(ev.session_id).slice(0, 16) : '-';
+            const details = formatData(ev.data);
+            return '<div class="event-row">' +
+              '<span class="ts">' + escHtml(ts) + '</span>' +
+              '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
+              '<span class="ev-type">' + escHtml(ev.event || '') + '</span>' +
+              '<span class="session">' + sid + '</span>' +
+              '<span class="details">' + details + '</span>' +
+              '</div>';
+          }).join('');
+          if (wasScrolled) logEl.scrollTop = logEl.scrollHeight;
         }
+
+        // Auth captures
+        const authEl = document.getElementById("auth-list");
+        if (auth.auth_events && auth.auth_events.length > 0) {
+          document.getElementById("auth-count").textContent = auth.auth_events.length + ' captured';
+          authEl.innerHTML = auth.auth_events.map(a => {
+            const ts = (a.timestamp || '').slice(11, 19);
+            const svc = escHtml(a.service || a.event || 'ssh');
+            const user = escHtml(a.username || '-');
+            const pass = escHtml(a.password || '****');
+            const ip = escHtml(a.src_ip || '-');
+            return '<div class="auth-row">' +
+              '<span class="svc-badge">' + svc + '</span>' +
+              '<span class="user">' + user + '</span>' +
+              '<span class="pass" onclick="this.classList.toggle(\'revealed\')">' + pass + '</span>' +
+              '<span class="ip">' + ip + '</span>' +
+              '<span class="ts">' + ts + '</span>' +
+              '</div>';
+          }).join('');
+        }
+
+        // Sessions
+        const sessEl = document.getElementById("session-list");
+        if (sessions.length > 0) {
+          document.getElementById("session-count").textContent = sessions.length + ' sessions';
+          sessEl.innerHTML = sessions.map(s => {
+            const name = escHtml(s.file);
+            const sid = s.file.replace('.jsonl', '');
+            return '<div class="session-row" onclick="openSession(\'' + escHtml(sid) + '\')">' +
+              '<span class="name">' + name + '</span>' +
+              '<div class="meta">' +
+              '<span class="count">' + s.events + ' events</span>' +
+              '</div>' +
+              '</div>';
+          }).join('');
+        }
+
+        // Layers
+        const layerEl = document.getElementById("layer-list");
+        if (layers.layers && layers.layers.length > 0) {
+          layerEl.innerHTML = layers.layers.map(l => {
+            const active = l.status === 'active';
+            const sessCount = l.sessions > 0 ? l.sessions + ' sessions' : '';
+            return '<div class="layer-bar">' +
+              '<span class="dot ' + (active ? 'active' : 'standby') + '"></span>' +
+              '<span class="lname">' + escHtml(l.name) + '</span>' +
+              '<span class="ldetail">' + escHtml(l.detail || '') + '</span>' +
+              '<span class="lsessions">' + sessCount + '</span>' +
+              '</div>';
+          }).join('');
+        }
+
+        // Containers
+        const contEl = document.getElementById("container-list");
+        const allContainers = [...(containers.infrastructure || []), ...(containers.sessions || [])];
+        if (allContainers.length > 0) {
+          contEl.innerHTML = allContainers.map(c => {
+            const running = c.state === 'running';
+            return '<div class="container-row">' +
+              '<span class="cdot ' + (running ? 'running' : 'stopped') + '"></span>' +
+              '<span class="cname">' + escHtml(c.name) + '</span>' +
+              '<span class="cstatus">' + escHtml(c.status) + '</span>' +
+              '<span class="cports">' + escHtml(c.ports || '') + '</span>' +
+              '</div>';
+          }).join('');
+        }
+
       } catch(e) { console.log("Dashboard refresh error:", e); }
     }
+
+    async function openSession(sessionId) {
+      try {
+        const resp = await fetch("/api/sessions/" + encodeURIComponent(sessionId));
+        const data = await resp.json();
+        if (data.error) return;
+
+        document.getElementById("modal-title").textContent = data.session_id;
+
+        let html = '<div class="modal-meta">';
+        html += '<span>Events: <span class="val">' + (data.events || []).length + '</span></span>';
+        html += '<span>Max Depth: <span class="val">' + (data.max_depth || 0) + '</span></span>';
+        html += '<span>L3: <span class="val" style="color:' + (data.l3_activated ? '#ff3366' : '#484f58') + '">' + (data.l3_activated ? 'ACTIVE' : 'inactive') + '</span></span>';
+        html += '<span>Layers: <span class="val">' + (data.layers_triggered || []).map(l => 'L' + l).join(', ') + '</span></span>';
+        html += '</div>';
+
+        if (data.first_seen) {
+          html += '<div style="color:#484f58;font-size:11px;margin-bottom:12px">' + escHtml(data.first_seen) + ' &rarr; ' + escHtml(data.last_seen) + '</div>';
+        }
+
+        if (data.events && data.events.length > 0) {
+          html += data.events.map(ev => {
+            const ts = (ev.timestamp || '').slice(11, 19);
+            const layer = ev.layer || 0;
+            const details = formatData(ev.data);
+            return '<div class="timeline-row">' +
+              '<span class="tl-ts">' + escHtml(ts) + '</span>' +
+              '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
+              '<span class="tl-ev" style="color:' + (['#00ff88','#00ccff','#cc33ff','#ff3366','#ffaa00'][Math.min(layer,4)]) + '">' + escHtml(ev.event || '') + '</span>' +
+              '<span class="tl-detail">' + details + '</span>' +
+              '</div>';
+          }).join('');
+        }
+
+        if (data.has_prompts && data.prompt_text) {
+          html += '<div style="margin-top:16px;padding:12px;background:#ff336610;border:1px solid #ff336630;border-radius:6px">';
+          html += '<div style="color:#ff3366;font-weight:bold;font-size:11px;margin-bottom:6px">CAPTURED PROMPT</div>';
+          html += '<pre style="color:#c9d1d9;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto">' + escHtml(data.prompt_text) + '</pre>';
+          html += '</div>';
+        }
+
+        document.getElementById("modal-body").innerHTML = html;
+        document.getElementById("modal-overlay").classList.add("active");
+      } catch(e) { console.log("Session detail error:", e); }
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").classList.remove("active");
+    }
+
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
     refresh();
     setInterval(refresh, 3000);
   </script>
