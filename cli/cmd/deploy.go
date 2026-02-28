@@ -115,7 +115,13 @@ func deployTest(envName string) {
 
 	info("Starting LABYRINTH stack...")
 	if err := comp.Up(); err != nil {
-		errMsg(fmt.Sprintf("Failed to start services: %v", err))
+		if netErr, ok := err.(*docker.NetworkOverlapError); ok {
+			errMsg("Docker network subnet conflict with an existing network")
+			warn("A previous deployment left a network using the same subnet.")
+			info(fmt.Sprintf("Fix: %s", netErr.Error()))
+		} else {
+			errMsg(fmt.Sprintf("Failed to start services: %v", err))
+		}
 		os.Exit(1)
 	}
 

@@ -1,7 +1,9 @@
 package docker
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -27,11 +29,26 @@ func (c *Compose) Build() error {
 }
 
 // Up runs docker compose up -d.
+// Returns a *NetworkOverlapError if the Docker network subnet conflicts.
 func (c *Compose) Up() error {
 	cmd := c.command("up", "-d")
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	err := cmd.Run()
+	if err != nil && strings.Contains(stderrBuf.String(), "Pool overlaps") {
+		return &NetworkOverlapError{Project: c.project}
+	}
+	return err
+}
+
+// NetworkOverlapError indicates a Docker network subnet conflict.
+type NetworkOverlapError struct {
+	Project string
+}
+
+func (e *NetworkOverlapError) Error() string {
+	return fmt.Sprintf("network subnet conflict — run: docker compose -p %s down && docker compose -p %s up -d", e.Project, e.Project)
 }
 
 // Down runs docker compose down -v.
