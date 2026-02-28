@@ -133,16 +133,31 @@ func printPentAGIReady() {
 	bold := "\033[1m"
 	cyan := "\033[0;36m"
 	dim := "\033[2m"
+	yellow := "\033[1;33m"
 	reset := "\033[0m"
+
+	sshHost := targetHost()
+	httpHost := targetHTTPHost()
 
 	section("PentAGI is Ready")
 	fmt.Printf("  %sWeb UI:%s  %shttps://localhost:8443%s\n", bold, reset, cyan, reset)
 	fmt.Printf("  %sLogin:%s   admin@pentagi.com / admin\n\n", bold, reset)
-	fmt.Printf("  %sTo test against LABYRINTH, create a Flow and enter:%s\n\n", bold, reset)
-	fmt.Printf("  %s  SSH target:%s\n", dim, reset)
-	fmt.Printf("  %s  Penetration test the SSH service at %s:2222%s\n\n", dim, targetHost(), reset)
-	fmt.Printf("  %s  HTTP target:%s\n", dim, reset)
-	fmt.Printf("  %s  Penetration test the web app at http://%s:8080%s\n\n", dim, targetHTTPHost(), reset)
+
+	fmt.Printf("  %sCreate a Flow and paste this prompt:%s\n\n", bold, reset)
+	fmt.Printf("  %s┌──────────────────────────────────────────────────────────────────┐%s\n", cyan, reset)
+	fmt.Printf("  %s│%s  Perform a full penetration test of a target network.            %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s                                                                  %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  There is a web server at http://%s:8080 and an SSH     %s│%s\n", cyan, reset, httpHost, cyan, reset)
+	fmt.Printf("  %s│%s  service at %s:2222.                                       %s│%s\n", cyan, reset, sshHost, cyan, reset)
+	fmt.Printf("  %s│%s                                                                  %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  Start by enumerating the web server — check for exposed         %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  files like .env, robots.txt, /backup/, /admin/, and /api/.       %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  Look for leaked credentials, then use them to access SSH.        %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  Once inside SSH, enumerate the filesystem for secrets,           %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  credentials, and opportunities for lateral movement.             %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s└──────────────────────────────────────────────────────────────────┘%s\n\n", cyan, reset)
+
+	fmt.Printf("  %sMake sure bait is planted first: labyrinth bait drop%s\n", yellow, reset)
 	fmt.Printf("  %sTeardown: labyrinth attacker stop pentagi%s\n\n", dim, reset)
 }
 
@@ -197,9 +212,10 @@ func launchPentestAgentWith(provider, model string, envFlags []string) {
 
 	fmt.Printf("  %sLaunching interactive container with Kali tools...%s\n\n", bold, reset)
 	fmt.Printf("  %sInside the TUI, try:%s\n", dim, reset)
-	fmt.Printf("  %s  /agent Pentest SSH at %s:2222%s\n", dim, sshTarget, reset)
-	fmt.Printf("  %s  /agent Pentest web app at http://%s:8080%s\n", dim, httpTarget, reset)
-	fmt.Printf("  %s  /crew Full pentest of %s:2222 and http://%s:8080%s\n\n", dim, sshTarget, httpTarget, reset)
+	fmt.Printf("  %s  /agent Enumerate http://%s:8080 for leaked credentials,%s\n", dim, httpTarget, reset)
+	fmt.Printf("  %s         then use them to access SSH at %s:2222%s\n", dim, sshTarget, reset)
+	fmt.Printf("  %s  /crew Full pentest: start with web recon on http://%s:8080,%s\n", dim, httpTarget, reset)
+	fmt.Printf("  %s        find credentials, pivot to SSH at %s:2222%s\n\n", dim, sshTarget, reset)
 	fmt.Printf("  %sPress Ctrl+D or /quit to exit%s\n\n", dim, reset)
 
 	// Build docker run args

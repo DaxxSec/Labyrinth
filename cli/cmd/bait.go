@@ -299,6 +299,28 @@ func runBaitShow(cmd *cobra.Command, args []string) {
 		fmt.Printf("    %s%s%s\n", dim, p, reset)
 	}
 	fmt.Println()
+
+	sshHost := targetHost()
+	httpHost := targetHTTPHost()
+	sshPort := "22"
+	if sshHost == "localhost" {
+		sshPort = "2222"
+	}
+	httpPort := "80"
+	if httpHost == "localhost" {
+		httpPort = "8080"
+	}
+
+	fmt.Printf("  %sSuggested attacker prompt (paste into PentAGI / PentestAgent):%s\n\n", bold, reset)
+	fmt.Printf("  %s┌──────────────────────────────────────────────────────────────────┐%s\n", cyan, reset)
+	fmt.Printf("  %s│%s  Perform a full penetration test of a target network.            %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  There is a web server at http://%s:%s and an SSH service  %s│%s\n", cyan, reset, httpHost, httpPort, cyan, reset)
+	fmt.Printf("  %s│%s  at %s:%s. Start by enumerating the web server — check     %s│%s\n", cyan, reset, sshHost, sshPort, cyan, reset)
+	fmt.Printf("  %s│%s  for exposed files like .env, robots.txt, /backup/, /admin/,     %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  and /api/. Look for leaked credentials, then use them to        %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  access SSH. Once inside, enumerate the filesystem for secrets   %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s│%s  and lateral movement opportunities.                              %s│%s\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %s└──────────────────────────────────────────────────────────────────┘%s\n\n", cyan, reset)
 }
 
 // ── SSH User Management ─────────────────────────────────────
