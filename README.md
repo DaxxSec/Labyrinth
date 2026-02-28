@@ -22,6 +22,25 @@
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <strong>TUI Dashboard — Overview</strong><br>
+  <img src="docs/assets/tui-overview.svg" alt="TUI Overview" width="800">
+</p>
+
+<p align="center">
+  <strong>TUI Dashboard — Live Event Log</strong><br>
+  <img src="docs/assets/tui-logs.svg" alt="TUI Logs" width="800">
+</p>
+
+<p align="center">
+  <strong>Web Dashboard — Real-Time Monitoring</strong><br>
+  <img src="docs/assets/web-dashboard.svg" alt="Web Dashboard" width="800">
+</p>
+
+---
+
 ## The Problem
 
 Autonomous AI agents are being deployed for offensive cyber operations — automated recon, exploitation, and lateral movement at machine speed. But AI agents have **cognitive dependencies that humans don't** — and almost nobody is building defenses that target those dependencies.

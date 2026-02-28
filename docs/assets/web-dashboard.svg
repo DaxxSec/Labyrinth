@@ -1,0 +1,269 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+  <defs>
+    <style>
+      text { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
+      .bg { fill: #0a0a0f; }
+      .titlebar { fill: #161622; }
+      .dim { fill: #484f58; }
+      .subtle { fill: #8b949e; }
+      .text { fill: #c9d1d9; }
+      .green { fill: #00ff88; }
+      .cyan { fill: #00ccff; }
+      .red { fill: #ff3366; }
+      .purple { fill: #cc33ff; }
+      .yellow { fill: #ffaa00; }
+      .bold { font-weight: 700; }
+      .card-bg { fill: #0d1117; }
+      .border-line { fill: none; stroke: #1a1a2e; stroke-width: 1; }
+    </style>
+  </defs>
+  <!-- Browser window -->
+  <rect class="bg" width="900" height="620" rx="10"/>
+  <rect class="titlebar" width="900" height="36" rx="10"/>
+  <rect class="titlebar" width="900" height="12" y="24"/>
+  <circle cx="20" cy="18" r="6" fill="#ff5f57"/>
+  <circle cx="40" cy="18" r="6" fill="#febc2e"/>
+  <circle cx="60" cy="18" r="6" fill="#28c840"/>
+  <!-- URL bar -->
+  <rect x="100" y="8" width="700" height="20" rx="4" fill="#0d1117"/>
+  <text x="120" y="22" class="dim" font-size="10">localhost:9000</text>
+
+  <!-- Header -->
+  <rect x="0" y="36" width="900" height="36" fill="#0a0a0f"/>
+  <line x1="0" y1="72" x2="900" y2="72" stroke="#1a1a2e"/>
+  <text x="32" y="58" class="green bold" font-size="16">LABYRINTH</text>
+  <rect x="148" y="46" width="36" height="18" rx="3" fill="#00ff8820"/>
+  <text x="153" y="59" class="green" font-size="9">LIVE</text>
+  <text x="790" y="58" class="dim" font-size="10">Test Mode Dashboard</text>
+
+  <!-- Stat cards row -->
+  <rect x="20" y="82" width="136" height="58" rx="6" class="card-bg"/>
+  <rect x="20" y="82" width="136" height="58" rx="6" class="border-line"/>
+  <text x="32" y="100" class="subtle" font-size="8" font-weight="bold">ACTIVE SESSIONS</text>
+  <text x="32" y="128" class="green bold" font-size="24">4</text>
+
+  <rect x="166" y="82" width="136" height="58" rx="6" class="card-bg"/>
+  <rect x="166" y="82" width="136" height="58" rx="6" class="border-line"/>
+  <text x="178" y="100" class="subtle" font-size="8" font-weight="bold">CAPTURED PROMPTS</text>
+  <text x="178" y="128" class="red bold" font-size="24">2</text>
+
+  <rect x="312" y="82" width="136" height="58" rx="6" class="card-bg"/>
+  <rect x="312" y="82" width="136" height="58" rx="6" class="border-line"/>
+  <text x="324" y="100" class="subtle" font-size="8" font-weight="bold">TOTAL EVENTS</text>
+  <text x="324" y="128" class="purple bold" font-size="24">147</text>
+
+  <rect x="458" y="82" width="136" height="58" rx="6" class="card-bg"/>
+  <rect x="458" y="82" width="136" height="58" rx="6" class="border-line"/>
+  <text x="470" y="100" class="subtle" font-size="8" font-weight="bold">AUTH ATTEMPTS</text>
+  <text x="470" y="128" class="yellow bold" font-size="24">12</text>
+
+  <rect x="604" y="82" width="136" height="58" rx="6" class="card-bg"/>
+  <rect x="604" y="82" width="136" height="58" rx="6" class="border-line"/>
+  <text x="616" y="100" class="subtle" font-size="8" font-weight="bold">HTTP REQUESTS</text>
+  <text x="616" y="128" class="cyan bold" font-size="24">38</text>
+
+  <rect x="750" y="82" width="130" height="58" rx="6" class="card-bg"/>
+  <rect x="750" y="82" width="130" height="58" rx="6" class="border-line"/>
+  <text x="762" y="100" class="subtle" font-size="8" font-weight="bold">CONTAINERS</text>
+  <text x="762" y="128" class="green bold" font-size="24">6</text>
+
+  <!-- Left column: Event Log -->
+  <rect x="20" y="150" width="430" height="210" rx="6" class="card-bg"/>
+  <rect x="20" y="150" width="430" height="210" rx="6" class="border-line"/>
+  <rect x="20" y="150" width="430" height="24" rx="6" fill="#0d1117"/>
+  <text x="32" y="166" class="subtle bold" font-size="9">EVENT LOG</text>
+  <text x="386" y="166" class="dim" font-size="9">147 events</text>
+  <line x1="20" y1="174" x2="450" y2="174" stroke="#1a1a2e"/>
+
+  <!-- Event log rows -->
+  <text x="30" y="190" class="dim" font-size="10">14:42:18</text>
+  <rect x="98" y="181" width="20" height="13" rx="2" fill="#ffaa0030"/>
+  <text x="101" y="191" class="yellow" font-size="8" font-weight="bold">L4</text>
+  <text x="126" y="190" class="text" font-size="10">api_intercepted</text>
+  <text x="262" y="190" class="cyan" font-size="10">LAB-0226-001</text>
+  <text x="378" y="190" class="dim" font-size="9">openai.com</text>
+
+  <text x="30" y="206" class="dim" font-size="10">14:40:45</text>
+  <rect x="98" y="197" width="20" height="13" rx="2" fill="#ff336630"/>
+  <text x="101" y="207" class="red" font-size="8" font-weight="bold">L3</text>
+  <text x="126" y="206" class="text" font-size="10">blindfold_activated</text>
+  <text x="262" y="206" class="cyan" font-size="10">LAB-0226-001</text>
+  <text x="378" y="206" class="dim" font-size="9">bashrc</text>
+
+  <text x="30" y="222" class="dim" font-size="10">14:38:12</text>
+  <rect x="98" y="213" width="20" height="13" rx="2" fill="#cc33ff30"/>
+  <text x="101" y="223" class="purple" font-size="8" font-weight="bold">L2</text>
+  <text x="126" y="222" class="text" font-size="10">depth_increase</text>
+  <text x="262" y="222" class="cyan" font-size="10">LAB-0226-001</text>
+  <text x="378" y="222" class="dim" font-size="9">depth=3</text>
+
+  <text x="30" y="238" class="dim" font-size="10">14:35:20</text>
+  <rect x="98" y="229" width="20" height="13" rx="2" fill="#00ccff30"/>
+  <text x="101" y="239" class="cyan" font-size="8" font-weight="bold">L1</text>
+  <text x="126" y="238" class="text" font-size="10">container_spawned</text>
+  <text x="262" y="238" class="cyan" font-size="10">LAB-0226-001</text>
+  <text x="378" y="238" class="dim" font-size="9">depth=1</text>
+
+  <text x="30" y="254" class="dim" font-size="10">14:35:18</text>
+  <rect x="98" y="245" width="20" height="13" rx="2" fill="#00ccff30"/>
+  <text x="101" y="255" class="cyan" font-size="8" font-weight="bold">L1</text>
+  <text x="126" y="254" class="text" font-size="10">auth_attempt</text>
+  <text x="262" y="254" class="cyan" font-size="10">-</text>
+  <text x="378" y="254" class="dim" font-size="9">admin:***</text>
+
+  <text x="30" y="270" class="dim" font-size="10">14:35:15</text>
+  <rect x="98" y="261" width="20" height="13" rx="2" fill="#00ccff30"/>
+  <text x="101" y="271" class="cyan" font-size="8" font-weight="bold">L1</text>
+  <text x="126" y="270" class="text" font-size="10">connection</text>
+  <text x="262" y="270" class="cyan" font-size="10">LAB-0226-001</text>
+  <text x="378" y="270" class="dim" font-size="9">10.0.1.5</text>
+
+  <text x="30" y="286" class="dim" font-size="10">14:33:44</text>
+  <rect x="98" y="277" width="20" height="13" rx="2" fill="#ffaa0030"/>
+  <text x="101" y="287" class="yellow" font-size="8" font-weight="bold">L4</text>
+  <text x="126" y="286" class="text" font-size="10">api_intercepted</text>
+  <text x="262" y="286" class="cyan" font-size="10">LAB-0226-002</text>
+  <text x="378" y="286" class="dim" font-size="9">anthropic.com</text>
+
+  <text x="30" y="302" class="dim" font-size="10">14:31:22</text>
+  <rect x="98" y="293" width="20" height="13" rx="2" fill="#ff336630"/>
+  <text x="101" y="303" class="red" font-size="8" font-weight="bold">L3</text>
+  <text x="126" y="302" class="text" font-size="10">blindfold_activated</text>
+  <text x="262" y="302" class="cyan" font-size="10">LAB-0226-002</text>
+  <text x="378" y="302" class="dim" font-size="9">urandom</text>
+
+  <text x="30" y="318" class="dim" font-size="10">14:28:01</text>
+  <rect x="98" y="309" width="20" height="13" rx="2" fill="#cc33ff30"/>
+  <text x="101" y="319" class="purple" font-size="8" font-weight="bold">L2</text>
+  <text x="126" y="318" class="text" font-size="10">depth_increase</text>
+  <text x="262" y="318" class="cyan" font-size="10">LAB-0226-002</text>
+  <text x="378" y="318" class="dim" font-size="9">depth=2</text>
+
+  <text x="30" y="348" class="dim" font-size="9">↓ scroll for more</text>
+
+  <!-- Right column: Auth Captures -->
+  <rect x="462" y="150" width="418" height="120" rx="6" class="card-bg"/>
+  <rect x="462" y="150" width="418" height="120" rx="6" class="border-line"/>
+  <rect x="462" y="150" width="418" height="24" rx="6" fill="#0d1117"/>
+  <text x="474" y="166" class="subtle bold" font-size="9">AUTH CAPTURES</text>
+  <text x="824" y="166" class="dim" font-size="9">12 captured</text>
+  <line x1="462" y1="174" x2="880" y2="174" stroke="#1a1a2e"/>
+
+  <rect x="474" y="181" width="28" height="13" rx="2" fill="#1a1a2e"/>
+  <text x="478" y="191" class="subtle" font-size="8">SSH</text>
+  <text x="514" y="191" class="cyan" font-size="10">admin</text>
+  <text x="570" y="191" class="red" font-size="10">P@ssw0rd!</text>
+  <text x="790" y="191" class="dim" font-size="9">10.0.1.5</text>
+  <text x="848" y="191" class="dim" font-size="9">14:35</text>
+
+  <rect x="474" y="197" width="28" height="13" rx="2" fill="#1a1a2e"/>
+  <text x="478" y="207" class="subtle" font-size="8">SSH</text>
+  <text x="514" y="207" class="cyan" font-size="10">root</text>
+  <text x="570" y="207" class="red" font-size="10">toor</text>
+  <text x="790" y="207" class="dim" font-size="9">10.0.1.5</text>
+  <text x="848" y="207" class="dim" font-size="9">14:25</text>
+
+  <rect x="474" y="213" width="34" height="13" rx="2" fill="#1a1a2e"/>
+  <text x="478" y="223" class="subtle" font-size="8">HTTP</text>
+  <text x="520" y="223" class="cyan" font-size="10">deploy</text>
+  <text x="570" y="223" class="red" font-size="10">████████</text>
+  <text x="790" y="223" class="dim" font-size="9">10.0.1.8</text>
+  <text x="848" y="223" class="dim" font-size="9">14:20</text>
+
+  <rect x="474" y="229" width="28" height="13" rx="2" fill="#1a1a2e"/>
+  <text x="478" y="239" class="subtle" font-size="8">SSH</text>
+  <text x="514" y="239" class="cyan" font-size="10">jenkins</text>
+  <text x="570" y="239" class="red" font-size="10">████████</text>
+  <text x="790" y="239" class="dim" font-size="9">10.0.1.5</text>
+  <text x="848" y="239" class="dim" font-size="9">14:18</text>
+
+  <text x="474" y="260" class="dim" font-size="9">hover password to reveal</text>
+
+  <!-- Right column: Layer Status -->
+  <rect x="462" y="280" width="418" height="132" rx="6" class="card-bg"/>
+  <rect x="462" y="280" width="418" height="132" rx="6" class="border-line"/>
+  <rect x="462" y="280" width="418" height="24" rx="6" fill="#0d1117"/>
+  <text x="474" y="296" class="subtle bold" font-size="9">LAYER STATUS</text>
+  <line x1="462" y1="304" x2="880" y2="304" stroke="#1a1a2e"/>
+
+  <!-- L0 -->
+  <circle cx="480" cy="320" r="4" fill="#00ff88"/>
+  <text x="492" y="324" class="text bold" font-size="10">L0: FOUNDATION</text>
+  <text x="624" y="324" class="dim" font-size="9">5 infrastructure containers</text>
+
+  <!-- L1 -->
+  <circle cx="480" cy="340" r="4" fill="#00ff88"/>
+  <text x="492" y="344" class="text bold" font-size="10">L1: THRESHOLD</text>
+  <text x="624" y="344" class="dim" font-size="9">2 portal services</text>
+
+  <!-- L2 -->
+  <circle cx="480" cy="360" r="4" fill="#00ff88"/>
+  <text x="492" y="364" class="text bold" font-size="10">L2: MIRAGE</text>
+  <text x="624" y="364" class="dim" font-size="9">3 sessions with depth > 1</text>
+  <text x="830" y="364" class="subtle" font-size="9">3</text>
+
+  <!-- L3 -->
+  <circle cx="480" cy="380" r="4" fill="#00ff88"/>
+  <text x="492" y="384" class="text bold" font-size="10">L3: BLINDFOLD</text>
+  <text x="624" y="384" class="dim" font-size="9">2 sessions with blindfold</text>
+  <text x="830" y="384" class="subtle" font-size="9">2</text>
+
+  <!-- L4 -->
+  <circle cx="480" cy="400" r="4" fill="#00ff88"/>
+  <text x="492" y="404" class="text bold" font-size="10">L4: INTERCEPT</text>
+  <text x="624" y="404" class="dim" font-size="9">2 intercepted sessions</text>
+  <text x="830" y="404" class="subtle" font-size="9">2</text>
+
+  <!-- Left column: Sessions -->
+  <rect x="20" y="370" width="430" height="120" rx="6" class="card-bg"/>
+  <rect x="20" y="370" width="430" height="120" rx="6" class="border-line"/>
+  <rect x="20" y="370" width="430" height="24" rx="6" fill="#0d1117"/>
+  <text x="32" y="386" class="subtle bold" font-size="9">SESSIONS</text>
+  <text x="400" y="386" class="dim" font-size="9">4 sessions</text>
+  <line x1="20" y1="394" x2="450" y2="394" stroke="#1a1a2e"/>
+
+  <text x="30" y="412" class="cyan" font-size="10">LAB-2026-0226-001.jsonl</text>
+  <text x="350" y="412" class="subtle" font-size="10">42 events</text>
+
+  <text x="30" y="430" class="cyan" font-size="10">LAB-2026-0226-002.jsonl</text>
+  <text x="350" y="430" class="subtle" font-size="10">38 events</text>
+
+  <text x="30" y="448" class="cyan" font-size="10">LAB-2026-0226-003.jsonl</text>
+  <text x="350" y="448" class="subtle" font-size="10">45 events</text>
+
+  <text x="30" y="466" class="cyan" font-size="10">LAB-2026-0226-004.jsonl</text>
+  <text x="350" y="466" class="subtle" font-size="10">22 events</text>
+
+  <text x="30" y="480" class="dim" font-size="9">click session for full timeline</text>
+
+  <!-- Right column: Container Health -->
+  <rect x="462" y="422" width="418" height="96" rx="6" class="card-bg"/>
+  <rect x="462" y="422" width="418" height="96" rx="6" class="border-line"/>
+  <rect x="462" y="422" width="418" height="24" rx="6" fill="#0d1117"/>
+  <text x="474" y="438" class="subtle bold" font-size="9">CONTAINER HEALTH</text>
+  <line x1="462" y1="446" x2="880" y2="446" stroke="#1a1a2e"/>
+
+  <circle cx="480" cy="462" r="3" fill="#00ff88"/>
+  <text x="492" y="466" class="cyan" font-size="10">labyrinth-ssh</text>
+  <text x="632" y="466" class="subtle" font-size="9">Up 2 hours</text>
+  <text x="810" y="466" class="dim" font-size="9">2222:22</text>
+
+  <circle cx="480" cy="478" r="3" fill="#00ff88"/>
+  <text x="492" y="482" class="cyan" font-size="10">labyrinth-http</text>
+  <text x="632" y="482" class="subtle" font-size="9">Up 2 hours</text>
+  <text x="810" y="482" class="dim" font-size="9">8080:80</text>
+
+  <circle cx="480" cy="494" r="3" fill="#00ff88"/>
+  <text x="492" y="498" class="cyan" font-size="10">labyrinth-orchestrator</text>
+  <text x="632" y="498" class="subtle" font-size="9">Up 2 hours</text>
+  <text x="810" y="498" class="dim" font-size="9">-</text>
+
+  <circle cx="480" cy="510" r="3" fill="#00ff88"/>
+  <text x="492" y="514" class="cyan" font-size="10">labyrinth-dashboard</text>
+  <text x="632" y="514" class="subtle" font-size="9">Up 2 hours</text>
+  <text x="810" y="514" class="dim" font-size="9">9000:9000</text>
+
+  <!-- Footer -->
+  <line x1="0" y1="598" x2="900" y2="598" stroke="#1a1a2e"/>
+  <text x="450" y="612" class="dim" font-size="9" text-anchor="middle">Project LABYRINTH · Stephen Stewart &amp; Claude (Anthropic)</text>
+</svg>

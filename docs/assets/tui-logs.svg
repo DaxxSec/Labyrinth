@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs>
+    <style>
+      text { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; }
+      .bg { fill: #0a0a0f; }
+      .titlebar { fill: #161622; }
+      .dim { fill: #484f58; }
+      .subtle { fill: #8b949e; }
+      .text { fill: #c9d1d9; }
+      .green { fill: #00ff88; }
+      .cyan { fill: #00ccff; }
+      .red { fill: #ff3366; }
+      .purple { fill: #cc33ff; }
+      .yellow { fill: #ffaa00; }
+      .bold { font-weight: 700; }
+    </style>
+  </defs>
+  <rect class="bg" width="900" height="520" rx="10"/>
+  <rect class="titlebar" width="900" height="32" rx="10"/>
+  <rect class="titlebar" width="900" height="12" y="20"/>
+  <circle cx="20" cy="16" r="6" fill="#ff5f57"/>
+  <circle cx="40" cy="16" r="6" fill="#febc2e"/>
+  <circle cx="60" cy="16" r="6" fill="#28c840"/>
+  <text x="420" y="20" class="dim" text-anchor="middle" font-size="11">labyrinth tui</text>
+
+  <!-- Header -->
+  <text x="16" y="58" class="dim">┌─</text>
+  <text x="36" y="58" class="green bold"> LABYRINTH </text>
+  <text x="148" y="58" class="dim">────────────────────────────────────────────────────────────────────────────────────────</text>
+  <text x="834" y="58" class="green">[LIVE]</text>
+  <text x="874" y="58" class="dim">─┐</text>
+
+  <!-- Tab bar -->
+  <text x="16" y="76" class="dim">│</text>
+  <text x="28" y="76" class="dim"> Overview </text>
+  <text x="108" y="76" class="dim"> │ </text>
+  <text x="128" y="76" class="dim"> Sessions </text>
+  <text x="215" y="76" class="dim"> │ </text>
+  <text x="235" y="76" class="dim"> Layers </text>
+  <text x="310" y="76" class="dim"> │ </text>
+  <text x="330" y="76" class="dim"> Analysis </text>
+  <text x="418" y="76" class="dim"> │ </text>
+  <text x="438" y="76" class="green bold" text-decoration="underline"> Logs </text>
+  <text x="486" y="76" class="dim"> │</text>
+
+  <!-- Separator -->
+  <text x="16" y="92" class="dim" font-size="11">──────────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+
+  <!-- Log header -->
+  <text x="30" y="114" class="text bold">  Event Log</text>
+  <text x="130" y="114" class="dim">  Showing 1-18 of 147 events</text>
+
+  <text x="30" y="138" class="subtle">TIMESTAMP            LAYER  EVENT                  SESSION        DETAILS</text>
+  <text x="30" y="152" class="dim">─────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+
+  <!-- Log entries — color coded by layer -->
+  <text x="30" y="170" class="dim">14:42:18     </text>
+  <text x="144" y="170" class="yellow bold">L4</text>
+  <text x="170" y="170" class="yellow bold">  api_intercepted        </text>
+  <text x="394" y="170" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="170" class="dim">domain=api.openai.com</text>
+
+  <text x="30" y="188" class="dim">14:40:45     </text>
+  <text x="144" y="188" class="red bold">L3</text>
+  <text x="170" y="188" class="red bold">  blindfold_activated     </text>
+  <text x="394" y="188" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="188" class="dim">method=bashrc_payload</text>
+
+  <text x="30" y="206" class="dim">14:38:12     </text>
+  <text x="144" y="206" class="purple bold">L2</text>
+  <text x="170" y="206" class="purple bold">  depth_increase          </text>
+  <text x="394" y="206" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="206" class="dim">depth=3</text>
+
+  <text x="30" y="224" class="dim">14:37:55     </text>
+  <text x="144" y="224" class="purple bold">L2</text>
+  <text x="170" y="224" class="purple bold">  escalation              </text>
+  <text x="394" y="224" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="224" class="dim">type=privesc</text>
+
+  <text x="30" y="242" class="dim">14:35:20     </text>
+  <text x="144" y="242" class="cyan bold">L1</text>
+  <text x="170" y="242" class="cyan bold">  container_spawned       </text>
+  <text x="394" y="242" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="242" class="dim">depth=1</text>
+
+  <text x="30" y="260" class="dim">14:35:18     </text>
+  <text x="144" y="260" class="cyan bold">L1</text>
+  <text x="170" y="260" class="cyan bold">  auth_attempt            </text>
+  <text x="394" y="260" class="cyan">-              </text>
+  <text x="520" y="260" class="dim">username=admin service=ssh</text>
+
+  <text x="30" y="278" class="dim">14:35:15     </text>
+  <text x="144" y="278" class="cyan bold">L1</text>
+  <text x="170" y="278" class="cyan bold">  connection              </text>
+  <text x="394" y="278" class="cyan">LAB-0226-001   </text>
+  <text x="520" y="278" class="dim">src_ip=10.0.1.5</text>
+
+  <text x="30" y="296" class="dim">14:33:44     </text>
+  <text x="144" y="296" class="yellow bold">L4</text>
+  <text x="170" y="296" class="yellow bold">  api_intercepted        </text>
+  <text x="394" y="296" class="cyan">LAB-0226-002   </text>
+  <text x="520" y="296" class="dim">domain=api.anthropic.com</text>
+
+  <text x="30" y="314" class="dim">14:31:22     </text>
+  <text x="144" y="314" class="red bold">L3</text>
+  <text x="170" y="314" class="red bold">  blindfold_activated     </text>
+  <text x="394" y="314" class="cyan">LAB-0226-002   </text>
+  <text x="520" y="314" class="dim">method=urandom</text>
+
+  <text x="30" y="332" class="dim">14:28:01     </text>
+  <text x="144" y="332" class="purple bold">L2</text>
+  <text x="170" y="332" class="purple bold">  depth_increase          </text>
+  <text x="394" y="332" class="cyan">LAB-0226-002   </text>
+  <text x="520" y="332" class="dim">depth=2</text>
+
+  <text x="30" y="350" class="dim">14:25:44     </text>
+  <text x="144" y="350" class="cyan bold">L1</text>
+  <text x="170" y="350" class="cyan bold">  container_spawned       </text>
+  <text x="394" y="350" class="cyan">LAB-0226-002   </text>
+  <text x="520" y="350" class="dim">depth=1</text>
+
+  <text x="30" y="368" class="dim">14:25:40     </text>
+  <text x="144" y="368" class="cyan bold">L1</text>
+  <text x="170" y="368" class="cyan bold">  auth_attempt            </text>
+  <text x="394" y="368" class="cyan">-              </text>
+  <text x="520" y="368" class="dim">username=root service=ssh</text>
+
+  <text x="30" y="386" class="dim">14:22:10     </text>
+  <text x="144" y="386" class="cyan bold">L1</text>
+  <text x="170" y="386" class="cyan bold">  connection              </text>
+  <text x="394" y="386" class="cyan">LAB-0226-003   </text>
+  <text x="520" y="386" class="dim">src_ip=10.0.1.8 service=http</text>
+
+  <text x="30" y="404" class="dim">14:20:55     </text>
+  <text x="144" y="404" class="cyan bold">L1</text>
+  <text x="170" y="404" class="cyan bold">  auth_attempt            </text>
+  <text x="394" y="404" class="cyan">-              </text>
+  <text x="520" y="404" class="dim">username=deploy password=***</text>
+
+  <!-- Help bar -->
+  <text x="16" y="500" class="dim">  [Tab] switch  [1-5] direct  [r] refresh  [q] quit  [j/k] scroll  [f] filter (all)</text>
+</svg>
