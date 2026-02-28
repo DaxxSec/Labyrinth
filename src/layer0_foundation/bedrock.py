@@ -44,16 +44,18 @@ class BedrockValidator:
             return False, errors
 
         # 2. Network exists with correct subnet
-        #    Compose may prefix the name (e.g. project_labyrinth-net)
+        #    Compose prefixes the name (e.g. labyrinth-labyrinth-test_labyrinth-net)
+        lab_net_name = None
         try:
             networks = [
                 n for n in docker_client.networks.list()
-                if "labyrinth-net" in n.name
+                if n.name.endswith("_labyrinth-net") or n.name == "labyrinth-net"
             ]
             if not networks:
                 errors.append("Network 'labyrinth-net' not found")
             else:
                 net = networks[0]
+                lab_net_name = net.name
                 ipam = net.attrs.get("IPAM", {})
                 subnet_configs = ipam.get("Config", [])
                 expected_subnet = config.network_subnet
@@ -74,11 +76,11 @@ class BedrockValidator:
             )
             if not proxy_containers:
                 errors.append("Proxy container 'labyrinth-proxy' not running")
-            else:
+            elif lab_net_name:
                 proxy = proxy_containers[0]
                 net_settings = proxy.attrs.get("NetworkSettings", {})
                 proxy_networks = net_settings.get("Networks", {})
-                lab_net = proxy_networks.get("labyrinth-net", {})
+                lab_net = proxy_networks.get(lab_net_name, {})
                 actual_ip = lab_net.get("IPAddress", "")
                 expected_ip = config.layer4.proxy_ip
                 if actual_ip != expected_ip:

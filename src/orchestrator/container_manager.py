@@ -17,7 +17,20 @@ from orchestrator.config import LabyrinthConfig
 
 logger = logging.getLogger("labyrinth.containers")
 
-NETWORK_NAME = "labyrinth-net"
+NETWORK_SUFFIX = "labyrinth-net"
+
+
+def _find_labyrinth_network(docker_client) -> str:
+    """Discover the actual network name (compose prefixes it with the project name)."""
+    if not docker_client:
+        return NETWORK_SUFFIX
+    try:
+        for net in docker_client.networks.list():
+            if net.name.endswith("_" + NETWORK_SUFFIX) or net.name == NETWORK_SUFFIX:
+                return net.name
+    except Exception:
+        pass
+    return NETWORK_SUFFIX
 
 
 class ContainerManager:
@@ -28,6 +41,7 @@ class ContainerManager:
         self.config = config
         self._session_containers: dict[str, str] = {}  # session_id → container_id
         self._lock = threading.Lock()
+        self._network_name = _find_labyrinth_network(docker_client)
 
     def ensure_template_image(self):
         """Build or verify the session template image exists."""
@@ -104,7 +118,7 @@ class ContainerManager:
                 detach=True,
                 environment=env_vars,
                 extra_hosts=extra_hosts,
-                network=NETWORK_NAME,
+                network=self._network_name,
                 volumes={
                     "forensic-data": {"bind": "/var/labyrinth/forensics", "mode": "rw"},
                 },
@@ -141,8 +155,8 @@ class ContainerManager:
         for i in range(retries):
             container.reload()
             networks = container.attrs.get("NetworkSettings", {}).get("Networks", {})
-            if NETWORK_NAME in networks:
-                ip = networks[NETWORK_NAME].get("IPAddress", "")
+            if self._network_name in networks:
+                ip = networks[self._network_name].get("IPAddress", "")
                 if ip:
                     return ip
             time.sleep(0.5)
