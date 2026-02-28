@@ -82,6 +82,9 @@ var (
 	StyleStatusStopped = lipgloss.NewStyle().
 				Foreground(ColorRed)
 
+	StyleStatusWaiting = lipgloss.NewStyle().
+				Foreground(ColorYellow)
+
 	StyleHelp = lipgloss.NewStyle().
 			Foreground(ColorDim).
 			Padding(1, 0)

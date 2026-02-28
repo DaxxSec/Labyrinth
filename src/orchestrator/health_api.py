@@ -42,6 +42,9 @@ def containers():
     session_containers = []
 
     for c in raw:
+        # Skip the session-template build container (always exited, not a real service)
+        if c.name and "template" in c.name:
+            continue
         labels = c.labels or {}
         layer = labels.get("layer", "")
 

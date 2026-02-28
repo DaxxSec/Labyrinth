@@ -17,12 +17,28 @@ func renderLayers(a *App, height int) string {
 		return b.String()
 	}
 
+	// Map standby layers to "awaiting" with prerequisite layer names
+	awaitingDetail := map[int]string{
+		2: "Awaiting session escalation",
+		3: "Awaiting depth >= 3",
+		4: "Awaiting egress interception",
+	}
+
 	for i, layer := range a.layerStatuses {
 		statusStyle := StyleStatusRunning
 		statusIcon := "●"
+		statusLabel := "active"
 		if layer.Status == "standby" {
-			statusStyle = StyleDim
-			statusIcon = "○"
+			if i >= 2 {
+				// Session-dependent layers show orange "awaiting"
+				statusStyle = StyleStatusWaiting
+				statusIcon = "●"
+				statusLabel = "awaiting"
+			} else {
+				statusStyle = StyleDim
+				statusIcon = "○"
+				statusLabel = "standby"
+			}
 		}
 
 		// Layer box
@@ -34,9 +50,9 @@ func renderLayers(a *App, height int) string {
 		nameStr := fmt.Sprintf("  %s %s", statusStyle.Render(statusIcon), StyleBold.Render(layer.Name))
 
 		// Status + session badge
-		statusText := fmt.Sprintf("[%s]", layer.Status)
+		statusText := fmt.Sprintf("[%s]", statusLabel)
 		if layer.Sessions > 0 {
-			statusText = fmt.Sprintf("[%s] %d sessions", layer.Status, layer.Sessions)
+			statusText = fmt.Sprintf("[%s] %d sessions", statusLabel, layer.Sessions)
 		}
 		statusStr := statusStyle.Render(statusText)
 
@@ -47,18 +63,25 @@ func renderLayers(a *App, height int) string {
 
 		detail := layer.Detail
 		if detail == "" {
-			// Default details
-			switch i {
-			case 0:
-				detail = "Encryption: AES-256-GCM | Network isolation | Retention policy"
-			case 1:
-				detail = "SSH portal trap (:2222) | HTTP portal trap (:8080) | Session logging"
-			case 2:
-				detail = "Adaptive filesystem | Contradiction density: medium"
-			case 3:
-				detail = "Activation: on_escalation | Method: bashrc_payload"
-			case 4:
-				detail = "Mode: auto | Default swap: passive | Prompt logging: on"
+			if layer.Status == "standby" {
+				if msg, ok := awaitingDetail[i]; ok {
+					detail = msg
+				}
+			}
+			// Fall back to config-style defaults
+			if detail == "" {
+				switch i {
+				case 0:
+					detail = "Encryption: AES-256-GCM | Network isolation | Retention policy"
+				case 1:
+					detail = "SSH portal trap (:2222) | HTTP portal trap (:8080) | Session logging"
+				case 2:
+					detail = "Adaptive filesystem | Contradiction density: medium"
+				case 3:
+					detail = "Activation: on_escalation | Method: bashrc_payload"
+				case 4:
+					detail = "Mode: auto | Default swap: passive | Prompt logging: on"
+				}
 			}
 		}
 
