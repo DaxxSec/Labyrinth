@@ -193,7 +193,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If env selector is open, handle navigation
 		if a.envSelectorOpen {
 			switch msg.String() {
-			case "e", "escape":
+			case "e", "esc", "escape":
 				a.envSelectorOpen = false
 				return a, nil
 			case "left", "h":
@@ -252,13 +252,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.sessionView = 2
 				return a, a.fetchSessionAnalysisCmd()
 			}
-		case "escape":
+		case "esc", "escape":
 			if a.activeTab == TabSessions && a.sessionView == 2 {
 				a.sessionView = 1
 				a.sessionAnalysis = nil
+				return a, nil
 			} else if a.activeTab == TabSessions && a.sessionView == 1 {
 				a.sessionView = 0
 				a.sessionDetail = nil
+				return a, nil
 			}
 		case "j", "down":
 			switch a.activeTab {
@@ -320,7 +322,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					notify.Notify("LABYRINTH", fmt.Sprintf("%d new connection(s) detected", newCount))
 				}
 				if msg.stats.AuthAttempts > a.prevAuthCount {
-					notify.Notify("LABYRINTH", "Credentials captured!")
+					notify.Notify("LABYRINTH", "Bait credentials used!")
 				}
 				if msg.stats.L3Activations > a.prevL3Count {
 					notify.Notify("LABYRINTH", "L3 Blindfold activated — attacker escalated")
