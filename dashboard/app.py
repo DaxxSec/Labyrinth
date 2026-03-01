@@ -4,7 +4,7 @@ Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request
-import json, os, glob, subprocess, time, urllib.request
+import json, os, glob, time, urllib.request
 
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
@@ -711,18 +711,66 @@ def container_logs():
     lines = min(int(request.args.get("lines", 50)), 200)
     if not service:
         return jsonify({"error": "service parameter required"}), 400
-    allowed = {"honeypot-ssh", "honeypot-http", "orchestrator", "proxy", "dashboard"}
-    if service not in allowed:
+    allowed_services = {
+        "honeypot-ssh": "labyrinth-ssh",
+        "honeypot-http": "labyrinth-http",
+        "orchestrator": "labyrinth-orchestrator",
+        "proxy": "labyrinth-proxy",
+        "dashboard": "labyrinth-dashboard",
+    }
+    if service not in allowed_services:
         return jsonify({"error": "unknown service"}), 400
     try:
-        result = subprocess.run(
-            ["docker", "logs", "--tail", str(lines), "labyrinth-" + service.replace("-", "-") + "-1"],
-            capture_output=True, text=True, timeout=5
-        )
-        output = result.stdout + result.stderr
-        return jsonify({"service": service, "lines": output.strip().split("\n") if output.strip() else []})
+        output = _docker_logs(allowed_services[service], lines)
+        return jsonify({"service": service, "lines": output})
     except Exception as e:
         return jsonify({"service": service, "lines": [], "error": str(e)})
+
+
+def _docker_logs(container_name, tail=50):
+    """Fetch container logs via Docker Engine API over Unix socket."""
+    import http.client
+    import socket
+
+    sock_path = "/var/run/docker.sock"
+    if not os.path.exists(sock_path):
+        return []
+
+    class DockerSocket(http.client.HTTPConnection):
+        def __init__(self):
+            super().__init__("localhost")
+        def connect(self):
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.sock.settimeout(5)
+            self.sock.connect(sock_path)
+
+    conn = DockerSocket()
+    conn.request("GET", f"/containers/{container_name}/logs?stdout=1&stderr=1&tail={tail}")
+    resp = conn.getresponse()
+    if resp.status != 200:
+        return []
+    raw = resp.read()
+    conn.close()
+
+    # Docker multiplexed stream: each frame has 8-byte header
+    # [stream_type(1) | padding(3) | size(4)] + payload
+    lines = []
+    pos = 0
+    while pos + 8 <= len(raw):
+        size = int.from_bytes(raw[pos+4:pos+8], "big")
+        pos += 8
+        if pos + size > len(raw):
+            break
+        chunk = raw[pos:pos+size].decode("utf-8", errors="replace").strip()
+        if chunk:
+            lines.extend(chunk.split("\n"))
+        pos += size
+
+    # Fallback: if no frames parsed, treat as plain text
+    if not lines and raw:
+        lines = raw.decode("utf-8", errors="replace").strip().split("\n")
+
+    return lines
 
 
 if __name__ == "__main__":
