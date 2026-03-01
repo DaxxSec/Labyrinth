@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"charm.land/lipgloss/v2"
 )
 
 func renderEnvironment(a *App, height int) string {
@@ -18,7 +20,12 @@ func renderEnvironment(a *App, height int) string {
 	left := renderBaitIdentity(a, leftWidth, height)
 	right := renderContainerLogsPanel(a, rightWidth, height)
 
-	return lipglossJoinHorizontal(left, " │ ", right)
+	// Use lipgloss.PlaceHorizontal to pad each panel to its fixed width,
+	// then join — this avoids ANSI-aware width issues.
+	leftBlock := lipgloss.NewStyle().Width(leftWidth).Render(left)
+	rightBlock := lipgloss.NewStyle().Width(rightWidth).Render(right)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftBlock, " │ ", rightBlock)
 }
 
 func renderBaitIdentity(a *App, width, height int) string {
@@ -27,13 +34,21 @@ func renderBaitIdentity(a *App, width, height int) string {
 	b.WriteString("\n")
 
 	if a.baitIdentity == nil {
-		b.WriteString(StyleDim.Render("  No bait identity loaded\n\n"))
-		b.WriteString(StyleDim.Render("  Bait identity is generated when the HTTP honeypot starts.\n"))
-		b.WriteString(StyleDim.Render("  Deploy an environment to populate this view.\n"))
+		b.WriteString(StyleDim.Render("  No bait identity loaded"))
+		b.WriteString("\n\n")
+		b.WriteString(StyleDim.Render("  Bait identity is generated when the"))
+		b.WriteString("\n")
+		b.WriteString(StyleDim.Render("  HTTP honeypot starts."))
+		b.WriteString("\n")
+		b.WriteString(StyleDim.Render("  Deploy an environment to populate"))
+		b.WriteString("\n")
+		b.WriteString(StyleDim.Render("  this view."))
+		b.WriteString("\n")
 		return b.String()
 	}
 
 	id := a.baitIdentity
+	sepW := maxInt(1, width-4)
 
 	// Company Identity
 	b.WriteString(StyleBold.Render("  ── Company Identity "))
@@ -47,17 +62,22 @@ func renderBaitIdentity(a *App, width, height int) string {
 	b.WriteString(StyleBold.Render("  ── Bait Users "))
 	b.WriteString(StyleDim.Render(strings.Repeat("─", maxInt(1, width-18))))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n",
-		StyleSubtle.Render(fmt.Sprintf("%-14s %-28s %s", "USERNAME", "EMAIL", "ROLE"))))
-	b.WriteString(fmt.Sprintf("  %s\n", StyleDim.Render(strings.Repeat("─", maxInt(1, width-4)))))
+	header := fmt.Sprintf("  %-14s %-28s %s", "USERNAME", "EMAIL", "ROLE")
+	b.WriteString(StyleSubtle.Render(header))
+	b.WriteString("\n")
+	b.WriteString("  ")
+	b.WriteString(StyleDim.Render(strings.Repeat("─", sepW)))
+	b.WriteString("\n")
 
 	for _, u := range id.Users {
 		uname := truncate(u.Uname, 12)
 		email := truncate(u.Email, 26)
 		role := truncate(u.Role, 14)
-		b.WriteString(fmt.Sprintf("  %-14s %-28s %s\n",
+		b.WriteString(fmt.Sprintf("  %s%s%s%s%s\n",
 			StyleValueGreen.Render(uname),
+			strings.Repeat(" ", maxInt(1, 14-len(uname))),
 			StyleValueCyan.Render(email),
+			strings.Repeat(" ", maxInt(1, 28-len(email))),
 			StyleDim.Render(role),
 		))
 	}
@@ -90,8 +110,9 @@ func renderBaitIdentity(a *App, width, height int) string {
 		if len(val) > 28 {
 			val = val[:25] + "..."
 		}
-		b.WriteString(fmt.Sprintf("  %-14s %s\n",
+		b.WriteString(fmt.Sprintf("  %s%s%s\n",
 			StyleSubtle.Render(c.label),
+			strings.Repeat(" ", maxInt(1, 14-len(c.label))),
 			StyleValueRed.Render(val),
 		))
 	}
@@ -163,49 +184,5 @@ func renderContainerLogsPanel(a *App, width, height int) string {
 		b.WriteString(fmt.Sprintf("  %s\n", StyleDim.Render(line)))
 	}
 
-	return b.String()
-}
-
-func lipglossJoinHorizontal(left, sep, right string) string {
-	leftLines := strings.Split(left, "\n")
-	rightLines := strings.Split(right, "\n")
-
-	maxLen := len(leftLines)
-	if len(rightLines) > maxLen {
-		maxLen = len(rightLines)
-	}
-
-	// Find widest left line
-	leftWidth := 0
-	for _, l := range leftLines {
-		w := len(l)
-		if w > leftWidth {
-			leftWidth = w
-		}
-	}
-
-	var b strings.Builder
-	for i := 0; i < maxLen; i++ {
-		l := ""
-		if i < len(leftLines) {
-			l = leftLines[i]
-		}
-		r := ""
-		if i < len(rightLines) {
-			r = rightLines[i]
-		}
-		// Pad left side
-		padding := leftWidth - len(l)
-		if padding < 0 {
-			padding = 0
-		}
-		b.WriteString(l)
-		b.WriteString(strings.Repeat(" ", padding))
-		b.WriteString(sep)
-		b.WriteString(r)
-		if i < maxLen-1 {
-			b.WriteString("\n")
-		}
-	}
 	return b.String()
 }

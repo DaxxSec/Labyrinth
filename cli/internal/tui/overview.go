@@ -50,7 +50,12 @@ func renderEnvInfo(a *App) string {
 		b.WriteString(StyleSubtle.Render(env.Mode))
 		b.WriteString("\n")
 		b.WriteString(StyleCardLabel.Render("Health: "))
-		if a.dataSource == SourceAPI {
+		if a.dashboardHealth != nil && a.dashboardHealth.Status == "ok" {
+			uptime := a.dashboardHealth.UptimeSeconds
+			uptimeStr := formatUptime(uptime)
+			b.WriteString(StyleStatusRunning.Render("● RUNNING"))
+			b.WriteString(StyleDim.Render(fmt.Sprintf(" (up %s)", uptimeStr)))
+		} else if a.dataSource == SourceAPI {
 			b.WriteString(StyleStatusRunning.Render("● RUNNING"))
 		} else if a.dataSource == SourceFiles {
 			b.WriteString(lipgloss.NewStyle().Foreground(ColorYellow).Render("● FILES ONLY"))
@@ -178,4 +183,17 @@ func renderServiceTable(a *App) string {
 	}
 
 	return b.String()
+}
+
+func formatUptime(seconds float64) string {
+	s := int(seconds)
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	if s < 3600 {
+		return fmt.Sprintf("%dm%ds", s/60, s%60)
+	}
+	h := s / 3600
+	m := (s % 3600) / 60
+	return fmt.Sprintf("%dh%dm", h, m)
 }

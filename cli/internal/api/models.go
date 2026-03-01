@@ -194,6 +194,12 @@ type BaitIdentity struct {
 	BaitPaths  []string   `json:"bait_paths"`
 }
 
+// DashboardHealth holds the health check response from the dashboard.
+type DashboardHealth struct {
+	Status        string  `json:"status"`
+	UptimeSeconds float64 `json:"uptime_seconds"`
+}
+
 // ContainerLogs holds log output from a Docker container.
 type ContainerLogs struct {
 	Service string   `json:"service"`

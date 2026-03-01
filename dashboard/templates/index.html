@@ -167,6 +167,7 @@
       <select id="env-selector" style="background: #0d1117; color: #c9d1d9; border: 1px solid #1a1a2e; border-radius: 4px; padding: 4px 8px; font-family: inherit; font-size: 11px; display: none;" onchange="switchEnvironment(this.value)">
         <option value="">This Environment</option>
       </select>
+      <span id="health-badge" style="color: #00ff88; font-size: 11px; padding: 3px 8px; background: #00ff8815; border-radius: 4px;">UP</span>
       <span id="mode-label" style="color: #484f58; font-size: 12px;">Dashboard</span>
     </div>
   </div>
@@ -817,12 +818,44 @@
       }, 5000);
     }
 
+    // Health check
+    async function checkHealth() {
+      const badge = document.getElementById('health-badge');
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const resp = await fetch((apiBase || '') + '/api/health', {signal: controller.signal});
+        clearTimeout(timeout);
+        const data = await resp.json();
+        if (data.status === 'ok') {
+          const secs = Math.floor(data.uptime_seconds);
+          let upStr;
+          if (secs < 60) upStr = secs + 's';
+          else if (secs < 3600) upStr = Math.floor(secs/60) + 'm';
+          else upStr = Math.floor(secs/3600) + 'h' + Math.floor((secs%3600)/60) + 'm';
+          badge.textContent = 'UP ' + upStr;
+          badge.style.color = '#00ff88';
+          badge.style.background = '#00ff8815';
+        } else {
+          badge.textContent = 'DEGRADED';
+          badge.style.color = '#ffaa00';
+          badge.style.background = '#ffaa0015';
+        }
+      } catch(e) {
+        badge.textContent = 'NO RESPONSE';
+        badge.style.color = '#ff3366';
+        badge.style.background = '#ff336615';
+      }
+    }
+
     loadIdentity();
     loadL4Mode();
+    checkHealth();
     discoverEnvironments();
     refresh();
     setInterval(refresh, 3000);
-    setInterval(loadL4Mode, 10000);  // refresh L4 mode every 10s
+    setInterval(loadL4Mode, 10000);
+    setInterval(checkHealth, 5000);
   </script>
 </body>
 </html>

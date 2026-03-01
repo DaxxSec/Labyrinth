@@ -154,6 +154,15 @@ func (c *Client) SetL4Mode(mode string) error {
 	return nil
 }
 
+// FetchHealth retrieves dashboard health status from /api/health.
+func (c *Client) FetchHealth() (*DashboardHealth, error) {
+	var h DashboardHealth
+	if err := c.getJSON("/api/health", &h); err != nil {
+		return nil, err
+	}
+	return &h, nil
+}
+
 // FetchBaitIdentity retrieves bait identity from /api/bait-identity.
 func (c *Client) FetchBaitIdentity() (*BaitIdentity, error) {
 	var identity BaitIdentity

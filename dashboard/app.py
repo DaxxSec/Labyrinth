@@ -4,10 +4,12 @@ Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request
-import json, os, glob, subprocess, urllib.request
+import json, os, glob, subprocess, time, urllib.request
 
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
+
+_start_time = time.time()
 
 LABYRINTH_ENV_NAME = os.environ.get("LABYRINTH_ENV_NAME", "default")
 LABYRINTH_ENV_TYPE = os.environ.get("LABYRINTH_ENV_TYPE", "test")
@@ -42,6 +44,12 @@ def index():
 @app.route("/api/identity")
 def identity():
     return jsonify({"name": LABYRINTH_ENV_NAME, "type": LABYRINTH_ENV_TYPE})
+
+
+@app.route("/api/health")
+def health():
+    uptime = time.time() - _start_time
+    return jsonify({"status": "ok", "uptime_seconds": round(uptime, 1)})
 
 
 @app.route("/api/sessions")
@@ -718,4 +726,5 @@ def container_logs():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=9000, debug=os.environ.get("FLASK_DEBUG", "0") == "1")
+    app.run(host="0.0.0.0", port=9000, threaded=True,
+            debug=os.environ.get("FLASK_DEBUG", "0") == "1")

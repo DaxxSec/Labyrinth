@@ -74,6 +74,9 @@ type App struct {
 	l4Mode           string            // current L4 mode (passive/neutralize/double_agent/counter_intel)
 	l4Intel          []api.L4IntelSummary // captured intelligence summaries
 
+	// Dashboard health
+	dashboardHealth  *api.DashboardHealth            // last health check result
+
 	// Environment tab
 	baitIdentity     *api.BaitIdentity              // bait identity from API
 	containerLogs    map[string]*api.ContainerLogs   // service → logs
@@ -132,6 +135,10 @@ type l4IntelMsg struct {
 type l4ModeSetMsg struct {
 	err error
 }
+type dashboardHealthMsg struct {
+	health *api.DashboardHealth
+	err    error
+}
 type baitIdentityMsg struct {
 	identity *api.BaitIdentity
 	err      error
@@ -176,6 +183,7 @@ func (a *App) Init() tea.Cmd {
 		fetchDataCmd(a.apiClient, a.fileReader),
 		fetchEnvsCmd(),
 		fetchL4ModeCmd(a.apiClient),
+		fetchDashboardHealthCmd(a.apiClient),
 	)
 }
 
@@ -299,7 +307,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.ready = true
 
 	case tickMsg:
-		cmds := []tea.Cmd{tickCmd(), fetchDataCmd(a.apiClient, a.fileReader)}
+		cmds := []tea.Cmd{tickCmd(), fetchDataCmd(a.apiClient, a.fileReader), fetchDashboardHealthCmd(a.apiClient)}
 		cmds = append(cmds, a.tabFetchCmd())
 		return a, tea.Batch(cmds...)
 
@@ -406,6 +414,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			// Refresh mode after set
 			return a, fetchL4ModeCmd(a.apiClient)
+		}
+
+	case dashboardHealthMsg:
+		if msg.err == nil {
+			a.dashboardHealth = msg.health
+		} else {
+			a.dashboardHealth = nil
 		}
 
 	case baitIdentityMsg:
@@ -890,6 +905,13 @@ func fetchL4IntelCmd(client *api.Client) tea.Cmd {
 		}
 		intel, err := client.FetchL4Intel()
 		return l4IntelMsg{intel: intel, err: err}
+	}
+}
+
+func fetchDashboardHealthCmd(client *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		health, err := client.FetchHealth()
+		return dashboardHealthMsg{health: health, err: err}
 	}
 }
 
