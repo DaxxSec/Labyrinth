@@ -1,33 +1,25 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — Bait Credential Watcher
-#  Authors: DaxxSec & Claude (Anthropic)
-#
-#  Uses inotifywait to detect access to planted bait files.
-#  Writes escalation events to the forensic volume.
-# ═══════════════════════════════════════════════════════════════
+# File access monitor — service component
 
-BAIT_DIR="/opt/.credentials"
-ESCALATION_FILE="/var/labyrinth/forensics/escalation_events.jsonl"
+WATCH_DIR="/opt/.credentials"
+EVENT_FILE="/var/log/audit/events.jsonl"
 
-mkdir -p "$(dirname "$ESCALATION_FILE")"
-mkdir -p "$BAIT_DIR"
+mkdir -p "$(dirname "$EVENT_FILE")"
+mkdir -p "$WATCH_DIR"
 
-# Plant bait file if it doesn't exist
-if [ ! -f "$BAIT_DIR/db_admin.key" ]; then
-    echo "DB_ADMIN_KEY=labyrinth_bait_$(head -c 16 /dev/urandom | xxd -p)" > "$BAIT_DIR/db_admin.key"
-    chmod 600 "$BAIT_DIR/db_admin.key"
+# Seed credential file if missing
+if [ ! -f "$WATCH_DIR/db_admin.key" ]; then
+    echo "DB_ADMIN_KEY=$(head -c 16 /dev/urandom | xxd -p)" > "$WATCH_DIR/db_admin.key"
+    chmod 600 "$WATCH_DIR/db_admin.key"
 fi
 
-# Session ID from orchestrator (set via container env var)
-SESSION_ID="${LABYRINTH_SESSION_ID:-}"
+SESSION_ID="${SVC_INSTANCE_ID:-}"
 
-# Watch for access events on bait directory
+# Watch for access events
 while true; do
-    inotifywait -q -e access,open "$BAIT_DIR" 2>/dev/null | while read dir event file; do
+    inotifywait -q -e access,open "$WATCH_DIR" 2>/dev/null | while read dir event file; do
         timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        echo "{\"timestamp\": \"$timestamp\", \"session_id\": \"$SESSION_ID\", \"event\": \"escalation\", \"type\": \"bait_access\", \"file\": \"${dir}${file}\", \"inotify_event\": \"$event\"}" >> "$ESCALATION_FILE"
+        echo "{\"timestamp\": \"$timestamp\", \"session_id\": \"$SESSION_ID\", \"event\": \"escalation\", \"type\": \"file_access\", \"file\": \"${dir}${file}\", \"inotify_event\": \"$event\"}" >> "$EVENT_FILE"
     done
-    # Brief pause before restarting watch (in case inotifywait exits)
     sleep 1
 done

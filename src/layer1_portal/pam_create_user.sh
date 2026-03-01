@@ -1,11 +1,5 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — PAM Auto-Create User Hook
-#  Authors: DaxxSec & Claude (Anthropic)
-#
-#  Called by pam_exec during auth — creates the user on-the-fly
-#  so any username is accepted. Standard honeypot pattern.
-# ═══════════════════════════════════════════════════════════════
+# PAM auto-create user hook — provisions users on first auth
 
 PAM_USER="${PAM_USER:-}"
 

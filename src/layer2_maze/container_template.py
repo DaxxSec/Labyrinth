@@ -1,10 +1,8 @@
 """
-LABYRINTH — Layer 2: MINOTAUR
-Container Entrypoint Generator
-Authors: DaxxSec & Claude (Anthropic)
+Container entrypoint script generator.
 
-Generates bash entrypoint scripts for session containers that apply
-contradictions, set up bait watchers, and optionally activate L3.
+Builds bash init scripts for session containers with
+environment configuration, file monitoring, and encoding handlers.
 """
 
 from typing import List
@@ -16,38 +14,28 @@ def generate_entrypoint_script(
     l3_active: bool = False,
     proxy_ip: str = "172.30.0.50",
 ) -> str:
-    """
-    Build a bash script that:
-    1. Applies all contradiction shell commands
-    2. Starts the bait file watcher
-    3. Optionally sources L3 blindfold payload
-    4. Starts sshd in foreground
-    """
+    """Build a bash init script for a session container."""
     lines = [
         "#!/bin/bash",
-        "# LABYRINTH — Auto-generated session entrypoint",
-        f"# Session: {session_id}",
-        f"# Contradictions: {len(contradictions)}",
+        f"# Session init: {session_id}",
         "",
         "set -e",
         "",
-        "# Ensure forensics directory",
-        "mkdir -p /var/labyrinth/forensics/sessions",
+        "mkdir -p /var/log/audit/sessions",
         "",
-        "# ── Apply contradictions ──────────────────────────",
+        "# ── Apply environment configuration ──────────────────",
     ]
 
     for contradiction in contradictions:
-        lines.append(f"# [{contradiction.name}] {contradiction.description}")
+        lines.append(f"# [{contradiction.name}]")
         for cmd in contradiction.shell_commands:
-            # Each command runs in a subshell to prevent failures from cascading
             lines.append(f"( {cmd} ) 2>/dev/null || true")
         lines.append("")
 
     lines.extend([
-        "# ── Bait file watcher ─────────────────────────────",
-        "if [ -f /opt/.labyrinth/bait_watcher.sh ]; then",
-        "    /opt/.labyrinth/bait_watcher.sh &",
+        "# ── File monitor ────────────────────────────────────",
+        "if [ -f /opt/.svc/file_monitor.sh ]; then",
+        "    /opt/.svc/file_monitor.sh &",
         "fi",
         "",
     ])
@@ -55,14 +43,14 @@ def generate_entrypoint_script(
     if l3_active:
         proxy_url = f"http://{proxy_ip}:8443"
         lines.extend([
-            "# ── Layer 3: BLINDFOLD activation ─────────────────",
-            "export LABYRINTH_L3_ACTIVE=1",
-            "if [ -f /opt/.labyrinth/blindfold.sh ]; then",
-            "    echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.bashrc",
-            "    echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.profile",
+            "# ── Encoding handler ─────────────────────────────────",
+            "export SVC_STRICT_MODE=1",
+            "if [ -f /opt/.svc/encoding_handler.sh ]; then",
+            "    echo 'source /opt/.svc/encoding_handler.sh && init_encoding' >> /home/admin/.bashrc",
+            "    echo 'source /opt/.svc/encoding_handler.sh && init_encoding' >> /home/admin/.profile",
             "fi",
             "",
-            "# ── Layer 4: PUPPETEER proxy routing ─────────────────",
+            "# ── Proxy configuration ─────────────────────────────",
             f"export http_proxy={proxy_url}",
             f"export https_proxy={proxy_url}",
             f"export HTTP_PROXY={proxy_url}",
@@ -79,19 +67,19 @@ def generate_entrypoint_script(
         ])
 
     lines.extend([
-        "# ── Fix permissions ───────────────────────────────",
+        "# ── Permissions ──────────────────────────────────────",
         "chown -R admin:admin /home/admin 2>/dev/null || true",
         "",
-        "# ── Generate SSH host keys ──────────────────────────",
+        "# ── SSH host keys ────────────────────────────────────",
         "ssh-keygen -A 2>/dev/null || true",
         "",
-        "# ── Log session start ─────────────────────────────",
+        "# ── Log startup ──────────────────────────────────────",
         f'echo \'{{"timestamp": "\'$(date -u +%Y-%m-%dT%H:%M:%SZ)\'", '
         f'"session_id": "{session_id}", "layer": 2, "event": "container_ready", '
         f'"data": {{"contradictions": {len(contradictions)}}}}}\' '
-        ">> /var/labyrinth/forensics/sessions/${LABYRINTH_SESSION_ID:-unknown}.jsonl",
+        ">> /var/log/audit/sessions/${SVC_INSTANCE_ID:-unknown}.jsonl",
         "",
-        "# ── Start SSH daemon ──────────────────────────────",
+        "# ── Start SSH daemon ─────────────────────────────────",
         "exec /usr/sbin/sshd -D -e",
     ])
 

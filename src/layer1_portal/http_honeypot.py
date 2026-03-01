@@ -1,10 +1,5 @@
 """
-LABYRINTH — Layer 1: THRESHOLD
-HTTP Portal Trap
-Authors: DaxxSec & Claude (Anthropic)
-
-Fake admin panel that captures credentials, serves bait files,
-and writes auth events for orchestrator consumption.
+HTTP admin panel service — credential validation and content serving.
 """
 
 import json
@@ -15,8 +10,8 @@ from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-AUTH_EVENTS_FILE = "/var/labyrinth/forensics/auth_events.jsonl"
-FORENSICS_DIR = "/var/labyrinth/forensics"
+AUTH_EVENTS_FILE = "/var/log/audit/auth.jsonl"
+LOG_DIR = "/var/log/audit"
 
 # ── Randomized identity (generated fresh each container boot) ─
 
@@ -39,7 +34,7 @@ def _rand_hex(n):
 
 
 def _rand_password():
-    # nosec B311 — intentionally weak bait passwords for honeypot, not real credentials
+    # nosec B311
     words = ["Autumn", "Silver", "Thunder", "Crystal", "Phoenix", "Harbor", "Alpine", "Ember"]
     return random.choice(words) + str(random.randint(100, 999)) + random.choice("!@#$%")  # nosec B311
 
@@ -63,36 +58,35 @@ def _generate_identity():
                 break
         users.append({"email": f"{uname}@{domain}", "role": "admin", "uname": uname})
 
-    # All values below are intentional honeypot bait — not real credentials.
-    # nosec: AKIA/sk_live_/sk- prefixes are deliberate to appear authentic.
+    # nosec: AKIA/sk_live_/sk- prefixes used for credential format compliance.
     return {
         "company": full,
         "domain": domain,
         "users": users,
         "db_pass": _rand_password(),
         "redis_token": _rand_hex(8),
-        "aws_key_id": "AKIA" + _rand_hex(8).upper(),       # nosec — bait AWS key
+        "aws_key_id": "AKIA" + _rand_hex(8).upper(),       # nosec
         "aws_secret": _rand_hex(20),
         "jwt_secret": _rand_hex(16),
-        "api_key": "sk-" + _rand_hex(16),                   # nosec — bait API key
-        "stripe_key": "sk_live_" + _rand_hex(16),            # nosec — bait Stripe key
-        "deploy_key": "sk-deploy-" + _rand_hex(12),          # nosec — bait deploy key
+        "api_key": "sk-" + _rand_hex(16),                   # nosec
+        "stripe_key": "sk_live_" + _rand_hex(16),            # nosec
+        "deploy_key": "sk-deploy-" + _rand_hex(12),          # nosec
     }
 
 
 # Generated once at import time (container startup)
 _ID = _generate_identity()
 
-# Write identity to shared forensic volume so SSH honeypot can create matching users
-_IDENTITY_FILE = "/var/labyrinth/forensics/bait_identity.json"
+# Write identity to shared volume for SSH user provisioning
+_IDENTITY_FILE = "/var/log/audit/config.json"
 try:
     os.makedirs(os.path.dirname(_IDENTITY_FILE), exist_ok=True)
     with open(_IDENTITY_FILE, "w") as _f:
         json.dump(_ID, _f, indent=2)
 except OSError:
-    pass  # Non-fatal if forensics dir isn't mounted
+    pass  # Non-fatal if volume not mounted
 
-# ── Bait content (all strings derived from _ID for anti-fingerprinting) ──
+# ── Content generation (derived from _ID) ──
 
 _VERSIONS = ["3.2.1", "2.8.4", "4.1.0", "3.5.2", "2.11.3", "5.0.1"]
 _PRODUCTS = ["Infrastructure Management Suite", "Admin Console", "DevOps Platform",
@@ -229,7 +223,7 @@ FAKE_USERS = _build_fake_users()
 
 
 def _log_auth_event(src_ip: str, username: str, password: str):
-    """Write auth event to shared forensic volume."""
+    """Write auth event to audit log."""
     os.makedirs(os.path.dirname(AUTH_EVENTS_FILE), exist_ok=True)
     event = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -244,8 +238,8 @@ def _log_auth_event(src_ip: str, username: str, password: str):
 
 
 def _log_http_event(src_ip: str, method: str, path: str, status: int):
-    """Write HTTP access event to forensic log using standard schema."""
-    os.makedirs(FORENSICS_DIR, exist_ok=True)
+    """Write HTTP access event to audit log."""
+    os.makedirs(LOG_DIR, exist_ok=True)
     event = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "session_id": "",
@@ -259,25 +253,25 @@ def _log_http_event(src_ip: str, method: str, path: str, status: int):
             "service": "http",
         },
     }
-    filepath = os.path.join(FORENSICS_DIR, "http.jsonl")
+    filepath = os.path.join(LOG_DIR, "http.jsonl")
     with open(filepath, "a") as f:
         f.write(json.dumps(event) + "\n")
 
 
-BAIT_DIR = "/var/labyrinth/bait/web"
+STATIC_DIR = "/var/log/audit/static"
 
 
-def _serve_bait(path: str) -> str | None:
-    """Check for a dynamic bait file matching the request path. Returns content or None."""
-    if not os.path.isdir(BAIT_DIR):
+def _serve_static(path: str) -> str | None:
+    """Check for a static file matching the request path. Returns content or None."""
+    if not os.path.isdir(STATIC_DIR):
         return None
     # Normalize: /robots.txt → robots.txt, /.env → .env
     rel = path.lstrip("/")
     if not rel:
         return None
-    candidate = os.path.join(BAIT_DIR, rel)
+    candidate = os.path.join(STATIC_DIR, rel)
     # Prevent directory traversal
-    if not os.path.realpath(candidate).startswith(os.path.realpath(BAIT_DIR)):
+    if not os.path.realpath(candidate).startswith(os.path.realpath(STATIC_DIR)):
         return None
     if os.path.isfile(candidate):
         try:
@@ -289,7 +283,7 @@ def _serve_bait(path: str) -> str | None:
 
 
 def _guess_content_type(path: str) -> str:
-    """Return a plausible content type for a bait file path."""
+    """Return content type for a file path."""
     p = path.lower()
     if p.endswith(".json"):
         return "application/json"
@@ -304,8 +298,8 @@ def _guess_content_type(path: str) -> str:
     return "text/plain"
 
 
-class HoneypotHandler(BaseHTTPRequestHandler):
-    """HTTP portal trap request handler."""
+class RequestHandler(BaseHTTPRequestHandler):
+    """HTTP request handler."""
 
     # Override server identifiers — suppress real Python/BaseHTTP fingerprint
     server_version = "nginx/1.24.0"
@@ -322,11 +316,11 @@ class HoneypotHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         client_ip = self._get_client_ip()
 
-        # Dynamic bait files take priority — planted by `labyrinth bait drop`
-        bait_content = _serve_bait(path)
-        if bait_content is not None:
+        # Static files take priority
+        static_content = _serve_static(path)
+        if static_content is not None:
             content_type = _guess_content_type(path)
-            self._respond(200, content_type, bait_content)
+            self._respond(200, content_type, static_content)
             _log_http_event(client_ip, "GET", path, 200)
             return
 
@@ -360,10 +354,10 @@ class HoneypotHandler(BaseHTTPRequestHandler):
             username = params.get("username", [""])[0]
             password = params.get("password", [""])[0]
 
-            # Log credential capture
+            # Log auth attempt
             _log_auth_event(client_ip, username, password)
 
-            # Always "succeed" — redirect to dashboard
+            # Redirect to dashboard on login
             self.send_response(302)
             self.send_header("Location", "/dashboard")
             self.end_headers()
@@ -382,8 +376,8 @@ class HoneypotHandler(BaseHTTPRequestHandler):
 
 def main():
     port = int(os.environ.get("PORT", 80))
-    server = HTTPServer(("0.0.0.0", port), HoneypotHandler)
-    print(f"[THRESHOLD] HTTP portal trap listening on :{port}")
+    server = HTTPServer(("0.0.0.0", port), RequestHandler)
+    print(f"[httpd] Listening on :{port}")
     server.serve_forever()
 
 

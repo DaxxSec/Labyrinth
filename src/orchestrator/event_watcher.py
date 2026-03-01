@@ -37,9 +37,9 @@ class ForensicEventHandler(FileSystemEventHandler):
         path = event.src_path
         basename = os.path.basename(path)
 
-        if basename == "auth_events.jsonl":
+        if basename == "auth.jsonl":
             self._process_new_lines(path, self._on_auth)
-        elif basename == "escalation_events.jsonl":
+        elif basename == "events.jsonl":
             self._process_new_lines(path, self._on_escalation)
 
     def on_created(self, event):

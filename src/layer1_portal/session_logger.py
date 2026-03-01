@@ -1,20 +1,12 @@
 """
-LABYRINTH — Layer 1: THRESHOLD
-Session Logger
-Authors: DaxxSec & Claude (Anthropic)
-
-Captures all shell activity within portal trap containers and writes
-structured JSONL to the forensic data volume for dashboard display
-and SIEM export.
-
-Status: Scaffolding — full implementation in progress.
+Session event logger — writes structured JSONL to audit volume.
 """
 
 import json
 import datetime
 import os
 
-FORENSICS_DIR = "/var/labyrinth/forensics/sessions"
+LOG_DIR = "/var/log/audit/sessions"
 
 
 def log_event(session_id: str, layer: int, event_type: str, data: dict = None):
@@ -27,8 +19,8 @@ def log_event(session_id: str, layer: int, event_type: str, data: dict = None):
         "data": data or {},
     }
 
-    os.makedirs(FORENSICS_DIR, exist_ok=True)
-    filepath = os.path.join(FORENSICS_DIR, f"{session_id}.jsonl")
+    os.makedirs(LOG_DIR, exist_ok=True)
+    filepath = os.path.join(LOG_DIR, f"{session_id}.jsonl")
 
     with open(filepath, "a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -37,9 +29,8 @@ def log_event(session_id: str, layer: int, event_type: str, data: dict = None):
 
 
 if __name__ == "__main__":
-    # Test
     test_event = log_event(
-        session_id="LAB-TEST-001",
+        session_id="TEST-001",
         layer=1,
         event_type="connection",
         data={"source_ip": "127.0.0.1", "service": "ssh"},

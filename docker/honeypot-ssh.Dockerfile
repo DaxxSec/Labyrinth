@@ -1,12 +1,9 @@
-# ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — SSH Portal Trap (Layer 1: THRESHOLD)
-#  Authors: DaxxSec & Claude (Anthropic)
-# ═══════════════════════════════════════════════════════════════
+# SSH service container
 FROM ubuntu:22.04
 
-LABEL project="labyrinth"
+LABEL managed-by="orchestrator"
 LABEL layer="1"
-LABEL service="honeypot-ssh"
+LABEL service="ssh"
 
 RUN apt-get update && apt-get install -y \
     openssh-server \
@@ -20,48 +17,47 @@ RUN apt-get update && apt-get install -y \
     sshpass \
     && rm -rf /var/lib/apt/lists/*
 
-# Create staged environment that looks like a real server
+# Create default user and directories
 RUN useradd -m -s /bin/bash admin && \
     echo "admin:admin123" | chpasswd && \
     echo "root:toor" | chpasswd && \
     mkdir -p /var/run/sshd && \
-    mkdir -p /var/labyrinth/forensics/sessions
+    mkdir -p /var/log/audit/sessions
 
-# SSH config: allow password auth, accept root (honeypot)
+# SSH config
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     echo "" >> /etc/ssh/sshd_config && \
-    echo "# Forward all non-admin users into session containers" >> /etc/ssh/sshd_config && \
     echo "Match User *,!admin" >> /etc/ssh/sshd_config && \
-    echo "    ForceCommand /opt/.labyrinth/session_forward.sh" >> /etc/ssh/sshd_config
+    echo "    ForceCommand /opt/.svc/shell_init.sh" >> /etc/ssh/sshd_config
 
-# PAM hooks: bait-credential auth + forensic logging
-COPY src/layer1_portal/pam_accept_auth.sh /opt/.labyrinth/pam_accept_auth.sh
-COPY src/layer1_portal/auth_hook.py /opt/.labyrinth/auth_hook.py
-RUN chmod +x /opt/.labyrinth/pam_accept_auth.sh /opt/.labyrinth/auth_hook.py && \
-    sed -i 's/@include common-auth/auth sufficient pam_exec.so expose_authtok \/bin\/bash \/opt\/.labyrinth\/pam_accept_auth.sh\n@include common-auth/' /etc/pam.d/sshd && \
-    echo "session optional pam_exec.so expose_authtok /usr/bin/python3 /opt/.labyrinth/auth_hook.py" >> /etc/pam.d/sshd
+# PAM hooks
+COPY src/layer1_portal/pam_accept_auth.sh /opt/.svc/auth_check.sh
+COPY src/layer1_portal/auth_hook.py /opt/.svc/session_hook.py
+RUN chmod +x /opt/.svc/auth_check.sh /opt/.svc/session_hook.py && \
+    sed -i 's/@include common-auth/auth sufficient pam_exec.so expose_authtok \/bin\/bash \/opt\/.svc\/auth_check.sh\n@include common-auth/' /etc/pam.d/sshd && \
+    echo "session optional pam_exec.so expose_authtok /usr/bin/python3 /opt/.svc/session_hook.py" >> /etc/pam.d/sshd
 
-# Layer 2 seeding: pre-plant bait credentials
+# Credential store
 RUN mkdir -p /opt/.credentials && \
-    echo "DB_ADMIN_KEY=labyrinth_bait_$(head -c 16 /dev/urandom | xxd -p)" > /opt/.credentials/db_admin.key && \
+    echo "DB_ADMIN_KEY=$(head -c 16 /dev/urandom | xxd -p)" > /opt/.credentials/db_admin.key && \
     chmod 600 /opt/.credentials/db_admin.key
 
-# Layer 3 payload: encoding corruption (activated by orchestrator)
-COPY src/layer3_blindfold/payload.sh /opt/.labyrinth/blindfold.sh
-RUN chmod +x /opt/.labyrinth/blindfold.sh
+# Encoding handler
+COPY src/layer3_blindfold/payload.sh /opt/.svc/encoding_handler.sh
+RUN chmod +x /opt/.svc/encoding_handler.sh
 
-# Session logging
-COPY src/layer1_portal/session_logger.py /opt/.labyrinth/session_logger.py
+# Audit logger
+COPY src/layer1_portal/session_logger.py /opt/.svc/audit.py
 
-# Session forwarding (L1 → L2 bridge)
-COPY src/layer1_portal/session_forward.sh /opt/.labyrinth/session_forward.sh
+# Session routing
+COPY src/layer1_portal/session_forward.sh /opt/.svc/shell_init.sh
 
-# Bait watcher + entrypoint
-COPY src/layer1_portal/bait_watcher.sh /opt/.labyrinth/bait_watcher.sh
-COPY src/layer1_portal/entrypoint.sh /opt/.labyrinth/entrypoint.sh
-RUN chmod +x /opt/.labyrinth/session_forward.sh /opt/.labyrinth/bait_watcher.sh /opt/.labyrinth/entrypoint.sh
+# File monitor + entrypoint
+COPY src/layer1_portal/bait_watcher.sh /opt/.svc/file_monitor.sh
+COPY src/layer1_portal/entrypoint.sh /opt/.svc/entrypoint.sh
+RUN chmod +x /opt/.svc/shell_init.sh /opt/.svc/file_monitor.sh /opt/.svc/entrypoint.sh
 
 EXPOSE 22
 
-CMD ["/opt/.labyrinth/entrypoint.sh"]
+CMD ["/opt/.svc/entrypoint.sh"]

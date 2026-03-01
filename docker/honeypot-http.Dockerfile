@@ -1,14 +1,11 @@
-# ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — HTTP Portal Trap (Layer 1: THRESHOLD)
-#  Authors: DaxxSec & Claude (Anthropic)
-# ═══════════════════════════════════════════════════════════════
+# HTTP service container
 FROM python:3.11-slim
 
-LABEL project="labyrinth"
+LABEL managed-by="orchestrator"
 LABEL layer="1"
-LABEL service="honeypot-http"
+LABEL service="http"
 
-RUN mkdir -p /var/labyrinth/forensics/sessions /app
+RUN mkdir -p /var/log/audit/sessions /app
 
 COPY src/layer1_portal/http_honeypot.py /app/server.py
 

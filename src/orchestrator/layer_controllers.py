@@ -100,10 +100,10 @@ class BlindfoldController:
 
             # Set environment variable and source the payload
             activate_cmd = (
-                "export LABYRINTH_L3_ACTIVE=1 && "
-                "echo 'export LABYRINTH_L3_ACTIVE=1' >> /home/admin/.bashrc && "
-                "echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.bashrc && "
-                "echo 'source /opt/.labyrinth/blindfold.sh && activate_blindfold' >> /home/admin/.profile"
+                "export SVC_STRICT_MODE=1 && "
+                "echo 'export SVC_STRICT_MODE=1' >> /home/admin/.bashrc && "
+                "echo 'source /opt/.svc/encoding_handler.sh && init_encoding' >> /home/admin/.bashrc && "
+                "echo 'source /opt/.svc/encoding_handler.sh && init_encoding' >> /home/admin/.profile"
             )
 
             container.exec_run(
@@ -131,7 +131,7 @@ class PuppeteerController:
 
     def __init__(self, config: Layer4Config):
         self.config = config
-        self._session_map_path = "/var/labyrinth/forensics/proxy_session_map.json"
+        self._session_map_path = "/var/labyrinth/forensics/proxy_map.json"
 
     def get_dns_overrides(self) -> dict:
         """Return DNS override mapping: AI API domains → proxy IP."""

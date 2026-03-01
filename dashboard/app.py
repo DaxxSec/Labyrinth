@@ -93,7 +93,7 @@ def stats():
             event_type = ev.get("event", "")
             if event_type == "session_end":
                 session_ended = True
-            elif event_type == "blindfold_activated":
+            elif event_type == "encoding_activated":
                 l3_activations += 1
             elif event_type == "api_intercepted":
                 l4_interceptions += 1
@@ -105,7 +105,7 @@ def stats():
             active_sessions += 1
 
     # Auth events
-    auth_file = os.path.join(FORENSICS_DIR, "auth_events.jsonl")
+    auth_file = os.path.join(FORENSICS_DIR, "auth.jsonl")
     if os.path.exists(auth_file):
         auth_events = _read_jsonl(auth_file)
         auth_attempts = len(auth_events)
@@ -166,7 +166,7 @@ def events():
             all_events.append(ev)
 
     # Auth events — normalize to common schema
-    auth_file = os.path.join(FORENSICS_DIR, "auth_events.jsonl")
+    auth_file = os.path.join(FORENSICS_DIR, "auth.jsonl")
     for ev in _read_jsonl(auth_file):
         all_events.append({
             "timestamp": ev.get("timestamp", ""),
@@ -213,7 +213,7 @@ def events():
 @app.route("/api/auth")
 def auth():
     limit = request.args.get("limit", 50, type=int)
-    auth_file = os.path.join(FORENSICS_DIR, "auth_events.jsonl")
+    auth_file = os.path.join(FORENSICS_DIR, "auth.jsonl")
     auth_events = _read_jsonl(auth_file)
     auth_events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
     auth_events = auth_events[:limit]
@@ -237,7 +237,7 @@ def session_detail(session_id):
         layer = ev.get("layer", 0)
         layers_triggered.add(layer)
         event_type = ev.get("event", "")
-        if event_type == "blindfold_activated":
+        if event_type == "encoding_activated":
             l3_activated = True
         data = ev.get("data", {})
         depth = data.get("depth", 0) if isinstance(data, dict) else 0
@@ -288,7 +288,7 @@ def session_analysis(session_id):
         "phases": _extract_phases(events),
         "event_breakdown": _count_event_types(events),
         "key_moments": _extract_key_moments(events),
-        "l3_activated": any(ev.get("event") == "blindfold_activated" for ev in events),
+        "l3_activated": any(ev.get("event") == "encoding_activated" for ev in events),
         "l4_active": any(ev.get("event") == "api_intercepted" for ev in events),
     }
     return jsonify(analysis)
@@ -356,7 +356,7 @@ def _compute_confusion_score(events):
     score += min(repeated_paths * 5, 20)
 
     # Blindfold activation is a strong signal
-    if any(ev.get("event") == "blindfold_activated" for ev in events):
+    if any(ev.get("event") == "encoding_activated" for ev in events):
         score += 15
 
     # API interception
@@ -393,7 +393,7 @@ def _extract_phases(events):
             phase_events["initial_access"].append(ts)
         elif event_type in ("depth_increase", "command"):
             phase_events["escalation"].append(ts)
-        elif event_type == "blindfold_activated":
+        elif event_type == "encoding_activated":
             phase_events["blindfold"].append(ts)
         elif event_type == "api_intercepted":
             phase_events["interception"].append(ts)
@@ -476,7 +476,7 @@ def _extract_key_moments(events):
                 "layer": layer,
             })
 
-        if event_type == "blindfold_activated" and "blindfold" not in seen:
+        if event_type == "encoding_activated" and "blindfold" not in seen:
             seen.add("blindfold")
             moments.append({
                 "timestamp": ts,
@@ -637,7 +637,7 @@ def layers():
             event_type = ev.get("event", "")
             if event_type in ("container_spawned", "depth_increase"):
                 l2_sessions.add(sid)
-            elif event_type == "blindfold_activated":
+            elif event_type == "encoding_activated":
                 l3_sessions.add(sid)
             elif event_type == "api_intercepted":
                 l4_sessions.add(sid)
@@ -699,7 +699,7 @@ def prompts():
 
 @app.route("/api/bait-identity")
 def bait_identity():
-    identity_file = os.path.join(FORENSICS_DIR, "bait_identity.json")
+    identity_file = os.path.join(FORENSICS_DIR, "config.json")
     if not os.path.exists(identity_file):
         return jsonify({"error": "no bait identity found"}), 404
     with open(identity_file, encoding="utf-8") as f:
@@ -707,7 +707,7 @@ def bait_identity():
     # Add bait file paths that are served by the HTTP honeypot
     data["bait_paths"] = ["/.env", "/api/config", "/api/users", "/robots.txt", "/backup/db_dump.sql"]
     # Add any CLI-dropped bait files from the web bait directory
-    bait_dir = "/var/labyrinth/bait/web"
+    bait_dir = os.path.join(FORENSICS_DIR, "static")
     if os.path.isdir(bait_dir):
         for fname in os.listdir(bait_dir):
             path = "/" + fname

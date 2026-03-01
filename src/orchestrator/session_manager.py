@@ -7,6 +7,7 @@ Thread-safe session lifecycle management with forensic ID generation.
 
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
@@ -57,8 +58,7 @@ class SessionManager:
         """Create a new session with a unique forensic ID."""
         with self._lock:
             self._counter += 1
-            now = datetime.utcnow()
-            session_id = f"LAB-{now.strftime('%Y-%m%d')}-{self._counter:03d}"
+            session_id = uuid.uuid4().hex[:12]
             session = Session(
                 session_id=session_id,
                 src_ip=src_ip,

@@ -41,7 +41,7 @@ logger = logging.getLogger("labyrinth.orchestrator")
 _siem_client: SiemClient = None
 
 
-_SESSION_FORWARD_MAP_PATH = "/var/labyrinth/forensics/session_forward_map.json"
+_SESSION_FORWARD_MAP_PATH = "/var/labyrinth/forensics/routing.json"
 
 
 def _update_forward_map(src_ip: str, container_ip: str):
@@ -319,30 +319,33 @@ class LabyrinthOrchestrator:
             session.container_id = container_id
             session.container_ip = container_ip
 
-            # Write forward map so labyrinth-ssh can route this attacker
-            # into the session container via ForceCommand
-            _update_forward_map(src_ip, container_ip)
+            if container_ip:
+                # Write forward map so labyrinth-ssh can route this attacker
+                # into the session container via ForceCommand
+                _update_forward_map(src_ip, container_ip)
 
-            # L4: Register IP → session mapping for proxy correlation
-            self.l4.register_session_ip(container_ip, session.session_id)
+                # L4: Register IP → session mapping for proxy correlation
+                self.l4.register_session_ip(container_ip, session.session_id)
 
-            # L4: Inject mitmproxy CA cert for transparent HTTPS interception
-            cert_ok = inject_ca_cert(self.docker_client, container_id)
-            if not cert_ok:
-                logger.warning(f"Session {session.session_id}: CA cert injection failed")
+                # L4: Inject mitmproxy CA cert for transparent HTTPS interception
+                cert_ok = inject_ca_cert(self.docker_client, container_id)
+                if not cert_ok:
+                    logger.warning(f"Session {session.session_id}: CA cert injection failed")
 
-            _log_forensic_event(session.session_id, 1, "container_spawned", {
-                "container_id": container_id,
-                "container_ip": container_ip,
-                "depth": session.depth,
-                "l3_active": l3_active,
-                "contradiction_density": contradiction_config.get("density", "medium"),
-            })
+                _log_forensic_event(session.session_id, 1, "container_spawned", {
+                    "container_id": container_id,
+                    "container_ip": container_ip,
+                    "depth": session.depth,
+                    "l3_active": l3_active,
+                    "contradiction_density": contradiction_config.get("density", "medium"),
+                })
 
-            logger.info(
-                f"Session {session.session_id}: container={container_id[:12]}, "
-                f"ip={container_ip}, depth={session.depth}"
-            )
+                logger.info(
+                    f"Session {session.session_id}: container={container_id[:12]}, "
+                    f"ip={container_ip}, depth={session.depth}"
+                )
+            else:
+                logger.error(f"Session {session.session_id}: container spawn returned empty IP, skipping forward map")
         else:
             logger.warning(f"Session {session.session_id}: no Docker client, skipping container spawn")
 
@@ -391,9 +394,13 @@ class LabyrinthOrchestrator:
                 l4_dns_overrides=dns_overrides,
             )
 
-            # Cleanup old container
+            # Cleanup old container BEFORE spawning new one to avoid name conflicts
             if old_container_id:
-                self.container_mgr.schedule_removal(old_container_id, delay=5)
+                self.container_mgr.schedule_removal(old_container_id, delay=0)
+
+            if not container_ip:
+                logger.error(f"Session {session_id}: escalation spawn failed, keeping existing forward map")
+                return
 
             session.container_id = container_id
             session.container_ip = container_ip
@@ -410,7 +417,7 @@ class LabyrinthOrchestrator:
             # L3+L4: Activate blindfold and proxy interception together
             if l3_newly_activated:
                 self.l3.activate(self.docker_client, session)
-                _log_forensic_event(session_id, 3, "blindfold_activated", {
+                _log_forensic_event(session_id, 3, "encoding_activated", {
                     "container_id": container_id,
                     "depth": session.depth,
                 })
@@ -445,7 +452,7 @@ class LabyrinthOrchestrator:
 
         if self.docker_client and session.container_id:
             self.l3.activate(self.docker_client, session)
-            _log_forensic_event(session.session_id, 3, "blindfold_activated", {
+            _log_forensic_event(session.session_id, 3, "encoding_activated", {
                 "container_id": session.container_id,
                 "depth": session.depth,
             })

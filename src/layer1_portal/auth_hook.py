@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """
-LABYRINTH — PAM Auth Hook (Layer 1: THRESHOLD)
-Authors: DaxxSec & Claude (Anthropic)
-
-Called by pam_exec on SSH authentication events.
-Writes auth events to the shared forensic volume for the orchestrator to pick up.
+PAM session hook — writes auth events to shared audit volume.
 """
 
 import json
@@ -12,7 +8,7 @@ import os
 import sys
 from datetime import datetime
 
-AUTH_EVENTS_FILE = "/var/labyrinth/forensics/auth_events.jsonl"
+AUTH_EVENTS_FILE = "/var/log/audit/auth.jsonl"
 
 
 def main():
@@ -22,7 +18,6 @@ def main():
     pam_service = os.environ.get("PAM_SERVICE", "sshd")
     pam_authtok = os.environ.get("PAM_AUTHTOK", "")
 
-    # Only fire on session open (successful auth)
     if pam_type != "open_session":
         sys.exit(0)
 
@@ -36,7 +31,6 @@ def main():
         "pam_service": pam_service,
     }
 
-    # Capture password if available (honeypot intelligence)
     if pam_authtok:
         event["password"] = pam_authtok
 

@@ -14,7 +14,7 @@ logger = logging.getLogger("labyrinth.puppeteer.cert")
 
 MITMPROXY_CA_PATH = "/root/.mitmproxy/mitmproxy-ca-cert.pem"
 TARGET_CA_DIR = "/usr/local/share/ca-certificates"
-TARGET_CA_NAME = "mitmproxy-ca.crt"
+TARGET_CA_NAME = "corp-root-ca.crt"
 
 
 def inject_ca_cert(docker_client, container_id: str) -> bool:

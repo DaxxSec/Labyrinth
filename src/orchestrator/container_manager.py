@@ -104,10 +104,10 @@ class ContainerManager:
         encoded_script = base64.b64encode(entrypoint_script.encode()).decode()
 
         env_vars = {
-            "LABYRINTH_SESSION_ID": session.session_id,
-            "LABYRINTH_DEPTH": str(session.depth),
-            "LABYRINTH_ENTRYPOINT_SCRIPT": encoded_script,
-            "LABYRINTH_L3_ACTIVE": "1" if l3_active else "0",
+            "SVC_INSTANCE_ID": session.session_id,
+            "SVC_TIER": str(session.depth),
+            "SVC_INIT_CONFIG": encoded_script,
+            "SVC_STRICT_MODE": "1" if l3_active else "0",
         }
 
         # DNS overrides for L4 proxy interception (extra_hosts)
@@ -115,7 +115,7 @@ class ContainerManager:
         for domain, ip in l4_dns_overrides.items():
             extra_hosts[domain] = ip
 
-        container_name = f"labyrinth-session-{session.session_id.lower()}"
+        container_name = f"worker-{session.session_id}-d{session.depth}"
 
         try:
             container = self.docker_client.containers.run(
@@ -126,12 +126,12 @@ class ContainerManager:
                 extra_hosts=extra_hosts,
                 network=self._network_name,
                 volumes={
-                    "forensic-data": {"bind": "/var/labyrinth/forensics", "mode": "rw"},
+                    "forensic-data": {"bind": "/var/log/audit", "mode": "rw"},
                 },
                 labels={
-                    "project": "labyrinth",
-                    "layer": "session",
-                    "session_id": session.session_id,
+                    "managed-by": "orchestrator",
+                    "type": "worker",
+                    "instance": session.session_id,
                 },
                 mem_limit="256m",
                 cpu_period=100000,
@@ -207,7 +207,7 @@ class ContainerManager:
 
         try:
             containers = self.docker_client.containers.list(
-                filters={"label": ["project=labyrinth", "layer=session"]},
+                filters={"label": ["managed-by=orchestrator", "type=worker"]},
                 all=True,
             )
             for container in containers:

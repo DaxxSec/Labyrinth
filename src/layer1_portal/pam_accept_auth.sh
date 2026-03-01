@@ -1,34 +1,24 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════════
-#  LABYRINTH — PAM Auth Hook (Layer 1: THRESHOLD)
-#  Authors: DaxxSec & Claude (Anthropic)
-#
-#  Validates SSH credentials against the bait identity planted
-#  by the HTTP honeypot. Only accepts known bait passwords —
-#  rejecting random guesses like a real server would.
-#  Auto-creates bait users on first login.
-# ═══════════════════════════════════════════════════════════════
+# PAM authentication check — validates credentials against identity config
 
 PAM_USER="${PAM_USER:-}"
 PAM_AUTHTOK="${PAM_AUTHTOK:-}"
-IDENTITY_FILE="/var/labyrinth/forensics/bait_identity.json"
+IDENTITY_FILE="/var/log/audit/config.json"
 
-# Empty username — reject
 if [ -z "$PAM_USER" ]; then
     exit 1
 fi
 
-# Let hardcoded admin through (validated by /etc/shadow via fallback)
+# System users fall through to common-auth
 if [ "$PAM_USER" = "admin" ] || [ "$PAM_USER" = "root" ]; then
-    exit 1  # fall through to common-auth
+    exit 1
 fi
 
-# No identity file — reject non-system users
 if [ ! -f "$IDENTITY_FILE" ]; then
     exit 1
 fi
 
-# Validate password against bait identity using Python
+# Validate credentials against identity config
 exec /usr/bin/python3 -c "
 import json, sys, os
 
@@ -43,13 +33,10 @@ try:
 except:
     sys.exit(1)
 
-# Check if this is a known bait user
-bait_usernames = [u.get('uname', '') for u in identity.get('users', [])]
+usernames = [u.get('uname', '') for u in identity.get('users', [])]
 db_pass = identity.get('db_pass', '')
 
-# Accept if: known bait user with the planted password (db_pass)
-if user in bait_usernames and password == db_pass:
-    # Auto-create if needed
+if user in usernames and password == db_pass:
     import subprocess
     try:
         subprocess.run(['id', user], capture_output=True, check=True)
@@ -58,6 +45,5 @@ if user in bait_usernames and password == db_pass:
                        capture_output=True)
     sys.exit(0)
 
-# Reject — wrong password or unknown user
 sys.exit(1)
 "

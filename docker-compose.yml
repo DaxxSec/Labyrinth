@@ -19,7 +19,7 @@ services:
     networks:
       - labyrinth-net
     volumes:
-      - forensic-data:/var/labyrinth/forensics
+      - forensic-data:/var/log/audit
     restart: unless-stopped
 
   # ── Layer 1: HTTP Portal Trap ───────────────────────────────
@@ -36,7 +36,7 @@ services:
     networks:
       - labyrinth-net
     volumes:
-      - forensic-data:/var/labyrinth/forensics
+      - forensic-data:/var/log/audit
     restart: unless-stopped
 
   # ── Orchestrator ──────────────────────────────────────────

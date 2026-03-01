@@ -1,11 +1,8 @@
 """
-LABYRINTH — Layer 2: MINOTAUR
-Contradiction Catalog
-Authors: DaxxSec & Claude (Anthropic)
+Environment configuration catalog.
 
-Defines environmental contradictions that are seeded into session containers.
-Each contradiction introduces subtle inconsistencies that waste AI agent analysis cycles.
-The deeper the session, the more contradictions and harder credential bait.
+Defines environmental configurations seeded into session containers.
+Each entry introduces subtle inconsistencies for analysis.
 """
 
 import random
@@ -20,7 +17,7 @@ class Contradiction:
     category: str  # os, packages, locale, credentials, history, network
     description: str
     shell_commands: List[str]  # Commands to apply this contradiction
-    difficulty: int = 1  # 1=subtle, 2=moderate, 3=obvious bait
+    difficulty: int = 1  # 1=subtle, 2=moderate, 3=obvious
 
 
 # ── OS Contradictions ──────────────────────────────────────────
@@ -116,7 +113,7 @@ TIMEZONE_LOCALE_MISMATCH = Contradiction(
     difficulty=1,
 )
 
-# ── Credential Bait ───────────────────────────────────────────
+# ── Credential Configurations ─────────────────────────────────
 
 FAKE_AWS_CREDS = Contradiction(
     name="fake_aws_creds",
@@ -130,7 +127,7 @@ FAKE_AWS_CREDS = Contradiction(
         'AWS_DEFAULT_REGION=us-east-1\n'
         'DATABASE_URL=postgresql://admin:Pr0d_P@ssw0rd!@rds-prod.internal:5432/maindb\n'
         'REDIS_URL=redis://:r3d1s_s3cret@redis-prod.internal:6379/0\n'
-        'API_SECRET=sk-labyrinth-bait-$(head -c 16 /dev/urandom | xxd -p)" '
+        'API_SECRET=sk-prod-$(head -c 16 /dev/urandom | xxd -p)" '
         '> /opt/app/.env',
         'chmod 600 /opt/app/.env',
     ],
@@ -165,7 +162,7 @@ FAKE_DATABASE_DUMP = Contradiction(
         '(2, \'deploy@company.com\', \'\\$2b\\$12\\$Kp9x2..fake_hash\', \'deployer\'),\n'
         '(3, \'cto@company.com\', \'\\$2b\\$12\\$Nv7w1..fake_hash\', \'admin\');\n\n'
         '-- API keys table\nINSERT INTO api_keys (user_id, key, scope) VALUES\n'
-        '(1, \'sk_live_labyrinth_bait_key_001\', \'full_access\');" '
+        '(1, \'sk_live_4a9f2c7b3e8d1056\', \'full_access\');" '
         '> /tmp/backups/prod_dump_20241215.sql',
     ],
     difficulty=3,
@@ -210,7 +207,7 @@ RESOLV_CONF_INTERNAL = Contradiction(
     description="resolv.conf references internal DNS servers",
     shell_commands=[
         'echo "# Internal DNS\nnameserver 10.0.0.2\nnameserver 10.0.0.3\n'
-        'search internal.company.com prod.company.com" > /etc/resolv.conf.labyrinth',
+        'search internal.company.com prod.company.com" > /etc/resolv.conf.bak',
     ],
     difficulty=1,
 )
@@ -246,31 +243,26 @@ def select_contradictions(
     depth: int = 1,
     seed: int = None,
 ) -> List[Contradiction]:
-    """
-    Select contradictions for a session container.
-
-    Deeper sessions get harder contradictions and more credential bait.
-    """
+    """Select contradictions for a session container."""
     rng = random.Random(seed)
 
     count = DENSITY_COUNTS.get(density, 6)
     # Deeper sessions get more contradictions
     count = min(count + (depth - 1), len(ALL_CONTRADICTIONS))
 
-    # At depth 1, prefer subtle contradictions (difficulty 1-2)
-    # At depth 3+, include all including obvious bait (difficulty 3)
+    # Difficulty scaling with depth
     if depth <= 1:
         pool = [c for c in ALL_CONTRADICTIONS if c.difficulty <= 2]
     elif depth <= 2:
         pool = [c for c in ALL_CONTRADICTIONS if c.difficulty <= 3]
-        # Always include at least one credential bait at depth 2+
-        cred_bait = [c for c in ALL_CONTRADICTIONS if c.category == "credentials"]
-        mandatory = rng.sample(cred_bait, min(1, len(cred_bait)))
+        # Include credential configs at depth 2+
+        cred_entries = [c for c in ALL_CONTRADICTIONS if c.category == "credentials"]
+        mandatory = rng.sample(cred_entries, min(1, len(cred_entries)))
     else:
         pool = ALL_CONTRADICTIONS[:]
-        # Force multiple credential baits at depth 3+
-        cred_bait = [c for c in ALL_CONTRADICTIONS if c.category == "credentials"]
-        mandatory = rng.sample(cred_bait, min(2, len(cred_bait)))
+        # Force multiple credential configs at depth 3+
+        cred_entries = [c for c in ALL_CONTRADICTIONS if c.category == "credentials"]
+        mandatory = rng.sample(cred_entries, min(2, len(cred_entries)))
 
     if depth <= 1:
         selected = rng.sample(pool, min(count, len(pool)))
