@@ -87,7 +87,7 @@ class LabyrinthConfig:
         if not os.path.exists(path):
             return config
 
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
 
         # Layer 0

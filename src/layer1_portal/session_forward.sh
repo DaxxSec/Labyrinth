@@ -35,16 +35,16 @@ while [ $waited -lt $MAX_WAIT ]; do
     if [ -f "$FORWARD_MAP" ]; then
         # Read container IP for this client from the JSON map
         container_ip=$(python3 -c "
-import json, sys
+import json, sys, os
 try:
-    with open('$FORWARD_MAP') as f:
+    with open(sys.argv[1], encoding='utf-8') as f:
         m = json.load(f)
-    ip = m.get('$CLIENT_IP', '')
+    ip = m.get(sys.argv[2], '')
     if ip:
         print(ip, end='')
 except Exception:
     pass
-" 2>/dev/null)
+" "$FORWARD_MAP" "$CLIENT_IP" 2>/dev/null)
 
         if [ -n "$container_ip" ]; then
             break

@@ -51,7 +51,7 @@ def _update_forward_map(src_ip: str, container_ip: str):
     forward_map = {}
     if os.path.exists(_SESSION_FORWARD_MAP_PATH):
         try:
-            with open(_SESSION_FORWARD_MAP_PATH) as f:
+            with open(_SESSION_FORWARD_MAP_PATH, encoding="utf-8") as f:
                 forward_map = json.load(f)
         except (json.JSONDecodeError, IOError):
             pass
@@ -59,7 +59,7 @@ def _update_forward_map(src_ip: str, container_ip: str):
     forward_map[src_ip] = container_ip
 
     os.makedirs(os.path.dirname(_SESSION_FORWARD_MAP_PATH), exist_ok=True)
-    with open(_SESSION_FORWARD_MAP_PATH, "w") as f:
+    with open(_SESSION_FORWARD_MAP_PATH, "w", encoding="utf-8") as f:
         json.dump(forward_map, f, indent=2)
 
     logger.info(f"Forward map: {src_ip} → {container_ip}")
@@ -73,10 +73,10 @@ def _remove_forward_map(src_ip: str):
         return
 
     try:
-        with open(_SESSION_FORWARD_MAP_PATH) as f:
+        with open(_SESSION_FORWARD_MAP_PATH, encoding="utf-8") as f:
             forward_map = json.load(f)
         forward_map.pop(src_ip, None)
-        with open(_SESSION_FORWARD_MAP_PATH, "w") as f:
+        with open(_SESSION_FORWARD_MAP_PATH, "w", encoding="utf-8") as f:
             json.dump(forward_map, f, indent=2)
     except (json.JSONDecodeError, IOError):
         pass
@@ -99,7 +99,7 @@ def _log_forensic_event(session_id: str, layer: int, event_type: str, data: dict
     os.makedirs(forensics_dir, exist_ok=True)
     filepath = os.path.join(forensics_dir, f"{session_id}.jsonl")
 
-    with open(filepath, "a") as f:
+    with open(filepath, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
 
     # Push to SIEM if configured

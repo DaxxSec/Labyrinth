@@ -4,7 +4,7 @@ Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request
-import json, os, glob, time, urllib.request
+import json, os, glob, re, time, urllib.request
 
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
@@ -14,7 +14,15 @@ _start_time = time.time()
 LABYRINTH_ENV_NAME = os.environ.get("LABYRINTH_ENV_NAME", "default")
 LABYRINTH_ENV_TYPE = os.environ.get("LABYRINTH_ENV_TYPE", "test")
 
-DASHBOARD_HTML = open("/app/dashboard/templates/index.html").read()
+_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+try:
+    with open(_TEMPLATE_PATH, encoding="utf-8") as _f:
+        DASHBOARD_HTML = _f.read()
+except FileNotFoundError:
+    DASHBOARD_HTML = "<h1>Dashboard template not found</h1>"
+
+# Session IDs are UUIDs or hex strings — reject anything with path separators
+_SAFE_SESSION_RE = re.compile(r"^[a-zA-Z0-9_\-]+$")
 
 
 def _read_jsonl(path, limit=0):
@@ -22,7 +30,7 @@ def _read_jsonl(path, limit=0):
     events = []
     if not os.path.exists(path):
         return events
-    with open(path) as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -56,7 +64,7 @@ def health():
 def sessions():
     result = []
     for f in sorted(glob.glob(f"{FORENSICS_DIR}/sessions/*.jsonl"), reverse=True)[:50]:
-        with open(f) as fh:
+        with open(f, encoding="utf-8") as fh:
             lines = fh.readlines()
             result.append({
                 "file": os.path.basename(f),
@@ -214,7 +222,8 @@ def auth():
 
 @app.route("/api/sessions/<session_id>")
 def session_detail(session_id):
-    # Find session file
+    if not _SAFE_SESSION_RE.match(session_id):
+        return jsonify({"error": "invalid session id"}), 400
     session_file = os.path.join(FORENSICS_DIR, "sessions", f"{session_id}.jsonl")
     if not os.path.exists(session_file):
         return jsonify({"error": "session not found"}), 404
@@ -243,7 +252,7 @@ def session_detail(session_id):
     has_prompts = os.path.exists(prompt_file)
     prompt_text = ""
     if has_prompts:
-        with open(prompt_file) as fh:
+        with open(prompt_file, encoding="utf-8") as fh:
             prompt_text = fh.read()
 
     return jsonify({
@@ -261,6 +270,8 @@ def session_detail(session_id):
 
 @app.route("/api/sessions/<session_id>/analysis")
 def session_analysis(session_id):
+    if not _SAFE_SESSION_RE.match(session_id):
+        return jsonify({"error": "invalid session id"}), 400
     session_file = os.path.join(FORENSICS_DIR, "sessions", f"{session_id}.jsonl")
     if not os.path.exists(session_file):
         return jsonify({"error": "session not found"}), 404
@@ -519,7 +530,7 @@ def l4_mode_get():
         mode = "passive"
         if os.path.exists(mode_file):
             try:
-                with open(mode_file) as f:
+                with open(mode_file, encoding="utf-8") as f:
                     data = json.load(f)
                     mode = data.get("mode", "passive")
             except (json.JSONDecodeError, IOError):
@@ -551,7 +562,7 @@ def l4_intel():
         for fname in sorted(os.listdir(intel_dir)):
             if fname.endswith(".json"):
                 try:
-                    with open(os.path.join(intel_dir, fname)) as f:
+                    with open(os.path.join(intel_dir, fname), encoding="utf-8") as f:
                         report = json.load(f)
                         reports.append(report.get("summary", {}))
                 except (json.JSONDecodeError, IOError):
@@ -587,7 +598,7 @@ def layers():
     layer_statuses = [
         {"name": "L0: FOUNDATION", "status": "standby", "detail": "", "sessions": 0},
         {"name": "L1: THRESHOLD", "status": "standby", "detail": "", "sessions": 0},
-        {"name": "L2: MIRAGE", "status": "standby", "detail": "", "sessions": 0},
+        {"name": "L2: MINOTAUR", "status": "standby", "detail": "", "sessions": 0},
         {"name": "L3: BLINDFOLD", "status": "standby", "detail": "", "sessions": 0},
         {"name": "L4: INTERCEPT", "status": "standby", "detail": "", "sessions": 0},
     ]
@@ -652,7 +663,7 @@ def prompts():
     result = []
     for f in sorted(glob.glob(f"{FORENSICS_DIR}/prompts/*.txt"), reverse=True):
         session_id = os.path.splitext(os.path.basename(f))[0]
-        with open(f) as fh:
+        with open(f, encoding="utf-8") as fh:
             content = fh.read()
 
         # Parse sections separated by "--- TIMESTAMP | DOMAIN ---"
@@ -691,7 +702,7 @@ def bait_identity():
     identity_file = os.path.join(FORENSICS_DIR, "bait_identity.json")
     if not os.path.exists(identity_file):
         return jsonify({"error": "no bait identity found"}), 404
-    with open(identity_file) as f:
+    with open(identity_file, encoding="utf-8") as f:
         data = json.load(f)
     # Add bait file paths that are served by the HTTP honeypot
     data["bait_paths"] = ["/.env", "/api/config", "/api/users", "/robots.txt", "/backup/db_dump.sql"]

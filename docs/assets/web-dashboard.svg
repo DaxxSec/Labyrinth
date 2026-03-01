@@ -198,7 +198,7 @@
 
   <!-- L2 -->
   <circle cx="480" cy="360" r="4" fill="#00ff88"/>
-  <text x="492" y="364" class="text bold" font-size="10">L2: MIRAGE</text>
+  <text x="492" y="364" class="text bold" font-size="10">L2: MINOTAUR</text>
   <text x="624" y="364" class="dim" font-size="9">3 sessions with depth > 1</text>
   <text x="830" y="364" class="subtle" font-size="9">3</text>
 

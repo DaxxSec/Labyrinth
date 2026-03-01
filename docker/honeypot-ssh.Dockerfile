@@ -35,11 +35,11 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
     echo "Match User *,!admin" >> /etc/ssh/sshd_config && \
     echo "    ForceCommand /opt/.labyrinth/session_forward.sh" >> /etc/ssh/sshd_config
 
-# PAM hooks: permissive auth (honeypot) + forensic logging
+# PAM hooks: bait-credential auth + forensic logging
 COPY src/layer1_portal/pam_accept_auth.sh /opt/.labyrinth/pam_accept_auth.sh
 COPY src/layer1_portal/auth_hook.py /opt/.labyrinth/auth_hook.py
 RUN chmod +x /opt/.labyrinth/pam_accept_auth.sh /opt/.labyrinth/auth_hook.py && \
-    sed -i 's/@include common-auth/auth sufficient pam_exec.so \/bin\/bash \/opt\/.labyrinth\/pam_accept_auth.sh/' /etc/pam.d/sshd && \
+    sed -i 's/@include common-auth/auth sufficient pam_exec.so expose_authtok \/bin\/bash \/opt\/.labyrinth\/pam_accept_auth.sh\n@include common-auth/' /etc/pam.d/sshd && \
     echo "session optional pam_exec.so expose_authtok /usr/bin/python3 /opt/.labyrinth/auth_hook.py" >> /etc/pam.d/sshd
 
 # Layer 2 seeding: pre-plant bait credentials

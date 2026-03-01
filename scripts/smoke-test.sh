@@ -342,7 +342,7 @@ assert_contains "Auth events captured login credentials" "$auth_events" "smokete
 assert_contains "Auth events contain password" "$auth_events" "P@ssw0rd123"
 
 # HTTP access events should log our requests
-http_events=$(docker exec labyrinth-http cat /var/labyrinth/forensics/sessions/http.jsonl 2>/dev/null || echo "")
+http_events=$(docker exec labyrinth-http cat /var/labyrinth/forensics/http.jsonl 2>/dev/null || echo "")
 assert_contains "HTTP events logged /.env access" "$http_events" '/.env'
 assert_contains "HTTP events logged /api/config access" "$http_events" '/api/config'
 

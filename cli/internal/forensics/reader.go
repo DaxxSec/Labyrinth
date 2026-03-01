@@ -3,13 +3,22 @@ package forensics
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/DaxxSec/labyrinth/cli/internal/api"
 )
+
+var safeSessionRE = regexp.MustCompile(`^[a-zA-Z0-9_\-\.]+$`)
+
+// isSafeSessionID rejects path traversal characters in session identifiers.
+func isSafeSessionID(id string) bool {
+	return id != "" && safeSessionRE.MatchString(id) && !strings.Contains(id, "..")
+}
 
 // Reader provides direct access to forensic JSONL files.
 type Reader struct {
@@ -109,6 +118,9 @@ func (r *Reader) ReadSessions() ([]api.SessionEntry, error) {
 
 // ReadEvents parses all events from a single JSONL session file.
 func (r *Reader) ReadEvents(sessionFile string) ([]api.ForensicEvent, error) {
+	if !isSafeSessionID(sessionFile) {
+		return nil, fmt.Errorf("invalid session file name")
+	}
 	path := filepath.Join(r.dir, "sessions", sessionFile)
 	return ParseJSONLFile(path)
 }
@@ -199,6 +211,9 @@ func (r *Reader) ReadAllEvents(limit int) ([]api.ForensicEvent, error) {
 
 // ReadSessionDetail reads and analyzes a single session's complete timeline.
 func (r *Reader) ReadSessionDetail(sessionID string) (*api.SessionDetail, error) {
+	if !isSafeSessionID(sessionID) {
+		return nil, fmt.Errorf("invalid session id")
+	}
 	path := filepath.Join(r.dir, "sessions", sessionID+".jsonl")
 	events, err := ParseJSONLFile(path)
 	if err != nil {
@@ -250,7 +265,7 @@ func (r *Reader) ComputeLayerStatus() ([]api.LayerStatus, error) {
 	layers := []api.LayerStatus{
 		{Name: "L0: FOUNDATION", Status: "standby"},
 		{Name: "L1: THRESHOLD", Status: "standby"},
-		{Name: "L2: MIRAGE", Status: "standby"},
+		{Name: "L2: MINOTAUR", Status: "standby"},
 		{Name: "L3: BLINDFOLD", Status: "standby"},
 		{Name: "L4: INTERCEPT", Status: "standby"},
 	}

@@ -90,7 +90,7 @@ def get_l4_mode():
     mode = "passive"
     try:
         if os.path.exists(L4_MODE_FILE):
-            with open(L4_MODE_FILE) as f:
+            with open(L4_MODE_FILE, encoding="utf-8") as f:
                 data = _json.load(f)
                 mode = data.get("mode", "passive")
     except (ValueError, IOError):
@@ -108,7 +108,7 @@ def set_l4_mode():
         return jsonify({"error": f"invalid mode: {new_mode}", "valid_modes": sorted(L4_VALID_MODES)}), 400
 
     os.makedirs(os.path.dirname(L4_MODE_FILE), exist_ok=True)
-    with open(L4_MODE_FILE, "w") as f:
+    with open(L4_MODE_FILE, "w", encoding="utf-8") as f:
         _json.dump({"mode": new_mode, "updated": datetime.utcnow().isoformat() + "Z"}, f)
 
     logger.info(f"L4 mode changed to: {new_mode}")
@@ -125,7 +125,7 @@ def get_l4_intel():
         for fname in sorted(os.listdir(intel_dir)):
             if fname.endswith(".json"):
                 try:
-                    with open(os.path.join(intel_dir, fname)) as f:
+                    with open(os.path.join(intel_dir, fname), encoding="utf-8") as f:
                         report = _json.load(f)
                         reports.append(report.get("summary", {}))
                 except (ValueError, IOError):

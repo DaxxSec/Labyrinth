@@ -171,7 +171,7 @@ func defaultLayerStatuses() []api.LayerStatus {
 	return []api.LayerStatus{
 		{Name: "L0: FOUNDATION", Status: "standby", Detail: "Waiting for deployment"},
 		{Name: "L1: THRESHOLD", Status: "standby", Detail: "Waiting for deployment"},
-		{Name: "L2: MIRAGE", Status: "standby", Detail: "Waiting for sessions"},
+		{Name: "L2: MINOTAUR", Status: "standby", Detail: "Waiting for sessions"},
 		{Name: "L3: BLINDFOLD", Status: "standby", Detail: "Waiting for escalation"},
 		{Name: "L4: INTERCEPT", Status: "standby", Detail: "Waiting for API traffic"},
 	}

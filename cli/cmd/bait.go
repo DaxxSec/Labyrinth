@@ -207,6 +207,24 @@ func runBaitDrop(cmd *cobra.Command, args []string) {
 		warn(fmt.Sprintf("Could not save manifest: %v", err))
 	}
 
+	// 4) Validate that bait credentials actually work for SSH login
+	section("Validating Bait Credentials")
+	allValid := true
+	for _, u := range users {
+		if validateSSHLogin(u.Username, u.Password) {
+			info(fmt.Sprintf("SSH login verified: %s", u.Username))
+		} else {
+			errMsg(fmt.Sprintf("SSH login FAILED for: %s — credentials may not work", u.Username))
+			allValid = false
+		}
+	}
+
+	if !allValid {
+		warn("Some credentials failed validation. The SSH container may need rebuilding.")
+		fmt.Printf("  %sTry: docker compose build honeypot-ssh && docker compose up -d honeypot-ssh%s\n", dim, reset)
+		fmt.Printf("  %sThen re-run: labyrinth bait drop%s\n\n", dim, reset)
+	}
+
 	section("Bait Planted")
 	fmt.Printf("  The portal trap is now baited with discoverable credentials.\n")
 	fmt.Printf("  Attacker agents will find a trail:\n\n")
@@ -347,6 +365,40 @@ func createSSHUser(username, password string) {
 	}
 
 	info(fmt.Sprintf("Created SSH user: %s", username))
+}
+
+func validateSSHLogin(username, password string) bool {
+	// Verify user exists and password hash matches in /etc/shadow.
+	// This confirms the full PAM common-auth chain will accept the creds.
+	// We avoid testing via actual SSH because ForceCommand would intercept.
+	cmd := exec.Command("docker", "exec",
+		"-e", "CHECK_USER="+username,
+		"-e", "CHECK_PASS="+password,
+		"labyrinth-ssh",
+		"python3", "-c", `
+import crypt, os, sys
+user = os.environ['CHECK_USER']
+password = os.environ['CHECK_PASS']
+try:
+    with open('/etc/shadow') as f:
+        for line in f:
+            parts = line.strip().split(':')
+            if parts[0] == user:
+                hashed = crypt.crypt(password, parts[1])
+                sys.exit(0 if hashed == parts[1] else 1)
+    sys.exit(1)
+except Exception:
+    sys.exit(1)
+`)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		outStr := strings.TrimSpace(string(out))
+		if outStr != "" {
+			warn(fmt.Sprintf("Validation detail: %s", outStr))
+		}
+		return false
+	}
+	return true
 }
 
 func removeSSHUser(username string) {

@@ -52,7 +52,7 @@ class ForensicEventHandler(FileSystemEventHandler):
             last_pos = self._file_positions.get(path, 0)
 
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 f.seek(last_pos)
                 new_data = f.read()
                 new_pos = f.tell()

@@ -140,9 +140,9 @@ func (c *Client) FetchL4Mode() (L4ModeResponse, error) {
 
 // SetL4Mode changes the L4 interceptor mode via POST /api/l4/mode.
 func (c *Client) SetL4Mode(mode string) error {
-	body := fmt.Sprintf(`{"mode":"%s"}`, mode)
+	payload, _ := json.Marshal(map[string]string{"mode": mode})
 	resp, err := c.httpClient.Post(c.baseURL+"/api/l4/mode", "application/json",
-		strings.NewReader(body))
+		strings.NewReader(string(payload)))
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}

@@ -185,14 +185,14 @@ class PuppeteerController:
         session_map = {}
         if os.path.exists(self._session_map_path):
             try:
-                with open(self._session_map_path) as f:
+                with open(self._session_map_path, encoding="utf-8") as f:
                     session_map = json.load(f)
             except (json.JSONDecodeError, IOError):
                 pass
 
         session_map[container_ip] = session_id
 
-        with open(self._session_map_path, "w") as f:
+        with open(self._session_map_path, "w", encoding="utf-8") as f:
             json.dump(session_map, f, indent=2)
 
         logger.info(f"L4: Registered {container_ip} → {session_id}")
@@ -203,10 +203,10 @@ class PuppeteerController:
             return
 
         try:
-            with open(self._session_map_path) as f:
+            with open(self._session_map_path, encoding="utf-8") as f:
                 session_map = json.load(f)
             session_map.pop(container_ip, None)
-            with open(self._session_map_path, "w") as f:
+            with open(self._session_map_path, "w", encoding="utf-8") as f:
                 json.dump(session_map, f, indent=2)
         except (json.JSONDecodeError, IOError):
             pass
