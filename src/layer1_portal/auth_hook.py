@@ -20,6 +20,7 @@ def main():
     pam_rhost = os.environ.get("PAM_RHOST", "unknown")
     pam_type = os.environ.get("PAM_TYPE", "unknown")
     pam_service = os.environ.get("PAM_SERVICE", "sshd")
+    pam_authtok = os.environ.get("PAM_AUTHTOK", "")
 
     # Only fire on session open (successful auth)
     if pam_type != "open_session":
@@ -34,6 +35,10 @@ def main():
         "pam_type": pam_type,
         "pam_service": pam_service,
     }
+
+    # Capture password if available (honeypot intelligence)
+    if pam_authtok:
+        event["password"] = pam_authtok
 
     os.makedirs(os.path.dirname(AUTH_EVENTS_FILE), exist_ok=True)
 
