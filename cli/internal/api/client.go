@@ -101,6 +101,16 @@ func (c *Client) FetchSessionDetail(sessionID string) (*SessionDetail, error) {
 	return &detail, nil
 }
 
+// FetchSessionAnalysis retrieves post-mortem analysis for a session.
+func (c *Client) FetchSessionAnalysis(sessionID string) (*SessionAnalysis, error) {
+	var analysis SessionAnalysis
+	path := fmt.Sprintf("/api/sessions/%s/analysis", sessionID)
+	if err := c.getJSON(path, &analysis); err != nil {
+		return nil, err
+	}
+	return &analysis, nil
+}
+
 // FetchPrompts retrieves captured AI prompts from /api/prompts.
 func (c *Client) FetchPrompts() ([]CapturedPrompt, error) {
 	var resp PromptsResponse

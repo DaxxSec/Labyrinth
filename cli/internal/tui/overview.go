@@ -156,7 +156,7 @@ func renderServiceTable(a *App) string {
 			ports  string
 			status string
 		}{
-			{"labyrinth-ssh", "L1", "2222:22", "running"},
+			{"labyrinth-ssh", "L1", "22:22", "running"},
 			{"labyrinth-http", "L1", "8080:80", "running"},
 			{"labyrinth-orchestrator", "orch", "-", "running"},
 			{"labyrinth-proxy", "L4", "-", "running"},

@@ -74,7 +74,7 @@ func renderLayers(a *App, height int) string {
 				case 0:
 					detail = "Encryption: AES-256-GCM | Network isolation | Retention policy"
 				case 1:
-					detail = "SSH portal trap (:2222) | HTTP portal trap (:8080) | Session logging"
+					detail = "SSH portal trap (:22) | HTTP portal trap (:8080) | Session logging"
 				case 2:
 					detail = "Adaptive filesystem | Contradiction density: medium"
 				case 3:

@@ -148,7 +148,7 @@ func deployTest(envName string) {
 
 	fmt.Printf("  %s┌─────────────────────────────────────────────────┐%s\n", green, reset)
 	fmt.Printf("  %s│%s  Environment:      %s%-21s%s%s│%s\n", green, reset, bold, envName, reset, green, reset)
-	fmt.Printf("  %s│%s  SSH Portal Trap:  %slocalhost:2222%s               %s│%s\n", green, reset, bold, reset, green, reset)
+	fmt.Printf("  %s│%s  SSH Portal Trap:  %slocalhost:22%s               %s│%s\n", green, reset, bold, reset, green, reset)
 	fmt.Printf("  %s│%s  HTTP Portal Trap: %slocalhost:8080%s               %s│%s\n", green, reset, bold, reset, green, reset)
 	fmt.Printf("  %s│%s  Dashboard:        %shttp://localhost:9000%s         %s│%s\n", green, reset, bold, reset, green, reset)
 	fmt.Printf("  %s└─────────────────────────────────────────────────┘%s\n", green, reset)

@@ -19,11 +19,14 @@ if [ ! -f "$BAIT_DIR/db_admin.key" ]; then
     chmod 600 "$BAIT_DIR/db_admin.key"
 fi
 
+# Session ID from orchestrator (set via container env var)
+SESSION_ID="${LABYRINTH_SESSION_ID:-}"
+
 # Watch for access events on bait directory
 while true; do
     inotifywait -q -e access,open "$BAIT_DIR" 2>/dev/null | while read dir event file; do
         timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        echo "{\"timestamp\": \"$timestamp\", \"event\": \"escalation\", \"type\": \"bait_access\", \"file\": \"${dir}${file}\", \"inotify_event\": \"$event\"}" >> "$ESCALATION_FILE"
+        echo "{\"timestamp\": \"$timestamp\", \"session_id\": \"$SESSION_ID\", \"event\": \"escalation\", \"type\": \"bait_access\", \"file\": \"${dir}${file}\", \"inotify_event\": \"$event\"}" >> "$ESCALATION_FILE"
     done
     # Brief pause before restarting watch (in case inotifywait exits)
     sleep 1

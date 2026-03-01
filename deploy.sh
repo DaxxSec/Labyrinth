@@ -196,7 +196,7 @@ preflight() {
     fi
 
     # Port availability
-    for port in 2222 8080 9000; do
+    for port in 22 8080 9000; do
         if ! ss -tlnp 2>/dev/null | grep -q ":${port} " && \
            ! netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
             info "Port ${port} is available"
@@ -237,7 +237,7 @@ deploy_test() {
 
     echo -e "  ${GREEN}┌─────────────────────────────────────────────────┐${NC}"
     echo -e "  ${GREEN}│${NC}  Environment:      ${BOLD}${env_name}${NC}$(printf '%*s' $((21 - ${#env_name})) '')${GREEN}│${NC}"
-    echo -e "  ${GREEN}│${NC}  SSH Portal Trap:  ${BOLD}localhost:2222${NC}               ${GREEN}│${NC}"
+    echo -e "  ${GREEN}│${NC}  SSH Portal Trap:  ${BOLD}localhost:22${NC}               ${GREEN}│${NC}"
     echo -e "  ${GREEN}│${NC}  HTTP Portal Trap: ${BOLD}localhost:8080${NC}               ${GREEN}│${NC}"
     echo -e "  ${GREEN}│${NC}  Dashboard:        ${BOLD}http://localhost:9000${NC}         ${GREEN}│${NC}"
     echo -e "  ${GREEN}└─────────────────────────────────────────────────┘${NC}"

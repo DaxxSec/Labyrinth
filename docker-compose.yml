@@ -15,7 +15,7 @@ services:
       project: labyrinth
       layer: "1"
     ports:
-      - "2222:22"
+      - "22:22"
     networks:
       - labyrinth-net
     volumes:

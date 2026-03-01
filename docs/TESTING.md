@@ -108,7 +108,7 @@ Strix runs as a host binary that launches its own Docker sandboxes. The setup sc
 **Usage:**
 ```bash
 strix --target http://localhost:8080
-strix --target localhost --instruction "Pentest SSH on port 2222"
+strix --target localhost --instruction "Pentest SSH on port 22"
 ```
 
 ---

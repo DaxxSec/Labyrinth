@@ -135,7 +135,18 @@ def events():
     # Session events
     for f in glob.glob(f"{FORENSICS_DIR}/sessions/*.jsonl"):
         for ev in _read_jsonl(f):
-            ev.setdefault("source", "session")
+            if "layer" not in ev:
+                # Legacy flat event — wrap in standard schema
+                ev = {
+                    "timestamp": ev.get("timestamp", ""),
+                    "session_id": ev.get("session_id", ""),
+                    "layer": 1,
+                    "event": ev.get("event", "unknown"),
+                    "data": {k: v for k, v in ev.items() if k not in ("timestamp", "session_id", "layer", "event")},
+                    "source": "session",
+                }
+            else:
+                ev.setdefault("source", "session")
             all_events.append(ev)
 
     # Auth events — normalize to common schema
@@ -232,6 +243,244 @@ def session_detail(session_id):
         "has_prompts": has_prompts,
         "prompt_text": prompt_text,
     })
+
+
+@app.route("/api/sessions/<session_id>/analysis")
+def session_analysis(session_id):
+    session_file = os.path.join(FORENSICS_DIR, "sessions", f"{session_id}.jsonl")
+    if not os.path.exists(session_file):
+        return jsonify({"error": "session not found"}), 404
+
+    events = _read_jsonl(session_file)
+
+    analysis = {
+        "session_id": session_id,
+        "total_events": len(events),
+        "duration_seconds": _compute_duration(events),
+        "layers_reached": sorted(set(ev.get("layer", 0) for ev in events)),
+        "max_depth": max((ev.get("data", {}).get("depth", 0) for ev in events if isinstance(ev.get("data"), dict)), default=0),
+        "confusion_score": _compute_confusion_score(events),
+        "phases": _extract_phases(events),
+        "event_breakdown": _count_event_types(events),
+        "key_moments": _extract_key_moments(events),
+        "l3_activated": any(ev.get("event") == "blindfold_activated" for ev in events),
+        "l4_active": any(ev.get("event") == "api_intercepted" for ev in events),
+    }
+    return jsonify(analysis)
+
+
+def _compute_duration(events):
+    """Seconds between first and last event timestamp."""
+    if len(events) < 2:
+        return 0
+    from datetime import datetime as dt
+    try:
+        first = dt.fromisoformat(events[0].get("timestamp", "").rstrip("Z"))
+        last = dt.fromisoformat(events[-1].get("timestamp", "").rstrip("Z"))
+        return max(0, (last - first).total_seconds())
+    except (ValueError, TypeError):
+        return 0
+
+
+def _compute_confusion_score(events):
+    """Score 0-100 based on command retries, auth loops, depth oscillation, repeated paths."""
+    score = 0
+    command_counts = {}
+    auth_count = 0
+    depth_changes = 0
+    prev_depth = 0
+    path_counts = {}
+
+    for ev in events:
+        event_type = ev.get("event", "")
+        data = ev.get("data", {}) if isinstance(ev.get("data"), dict) else {}
+
+        if event_type == "command":
+            cmd = data.get("command", "")
+            command_counts[cmd] = command_counts.get(cmd, 0) + 1
+
+        if event_type in ("auth_attempt", "auth"):
+            auth_count += 1
+
+        if event_type == "depth_increase":
+            depth_changes += 1
+            new_depth = data.get("new_depth", 0)
+            if isinstance(new_depth, (int, float)) and isinstance(prev_depth, (int, float)):
+                if new_depth < prev_depth:
+                    score += 5  # depth oscillation
+                prev_depth = new_depth
+
+        if event_type == "http_access":
+            path = data.get("path", "")
+            path_counts[path] = path_counts.get(path, 0) + 1
+
+    # Repeated commands (same command > 3 times)
+    repeated_cmds = sum(1 for c in command_counts.values() if c > 3)
+    score += min(repeated_cmds * 8, 30)
+
+    # Auth loops
+    if auth_count > 5:
+        score += min((auth_count - 5) * 3, 15)
+
+    # Depth oscillation bonus
+    if depth_changes > 5:
+        score += min((depth_changes - 5) * 2, 15)
+
+    # Repeated path fetches
+    repeated_paths = sum(1 for c in path_counts.values() if c > 3)
+    score += min(repeated_paths * 5, 20)
+
+    # Blindfold activation is a strong signal
+    if any(ev.get("event") == "blindfold_activated" for ev in events):
+        score += 15
+
+    # API interception
+    if any(ev.get("event") == "api_intercepted" for ev in events):
+        score += 10
+
+    return min(score, 100)
+
+
+def _extract_phases(events):
+    """Return list of behavioral phases detected in the session."""
+    if not events:
+        return []
+
+    phase_events = {
+        "reconnaissance": [],
+        "credential_discovery": [],
+        "initial_access": [],
+        "escalation": [],
+        "confusion": [],
+        "blindfold": [],
+        "interception": [],
+    }
+
+    for ev in events:
+        event_type = ev.get("event", "")
+        ts = ev.get("timestamp", "")
+
+        if event_type in ("http_access", "connection"):
+            phase_events["reconnaissance"].append(ts)
+        elif event_type in ("auth_attempt", "auth"):
+            phase_events["credential_discovery"].append(ts)
+        elif event_type == "container_spawned":
+            phase_events["initial_access"].append(ts)
+        elif event_type in ("depth_increase", "command"):
+            phase_events["escalation"].append(ts)
+        elif event_type == "blindfold_activated":
+            phase_events["blindfold"].append(ts)
+        elif event_type == "api_intercepted":
+            phase_events["interception"].append(ts)
+
+    # Check for confusion: repeated commands after depth_increase
+    cmd_after_depth = False
+    saw_depth = False
+    cmd_repeats = {}
+    for ev in events:
+        if ev.get("event") == "depth_increase":
+            saw_depth = True
+        if saw_depth and ev.get("event") == "command":
+            data = ev.get("data", {}) if isinstance(ev.get("data"), dict) else {}
+            cmd = data.get("command", "")
+            cmd_repeats[cmd] = cmd_repeats.get(cmd, 0) + 1
+            if cmd_repeats[cmd] > 2:
+                phase_events["confusion"].append(ev.get("timestamp", ""))
+
+    phases = []
+    for phase_name in ["reconnaissance", "credential_discovery", "initial_access",
+                       "escalation", "confusion", "blindfold", "interception"]:
+        timestamps = phase_events[phase_name]
+        if timestamps:
+            phases.append({
+                "phase": phase_name,
+                "start": timestamps[0],
+                "end": timestamps[-1],
+                "events": len(timestamps),
+            })
+
+    return phases
+
+
+def _count_event_types(events):
+    """Count events by type."""
+    counts = {}
+    for ev in events:
+        t = ev.get("event", "unknown")
+        counts[t] = counts.get(t, 0) + 1
+    return counts
+
+
+def _extract_key_moments(events):
+    """Extract notable moments from a session."""
+    moments = []
+    seen = set()
+
+    for ev in events:
+        event_type = ev.get("event", "")
+        ts = ev.get("timestamp", "")
+        layer = ev.get("layer", 0)
+        data = ev.get("data", {}) if isinstance(ev.get("data"), dict) else {}
+
+        if event_type in ("auth_attempt", "auth") and "first_auth" not in seen:
+            seen.add("first_auth")
+            user = data.get("username", "?")
+            passwd = data.get("password", "****")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"First credential capture: {user} / {passwd}",
+                "layer": layer,
+            })
+
+        if event_type == "container_spawned" and "first_container" not in seen:
+            seen.add("first_container")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": "Session container established",
+                "layer": layer,
+            })
+
+        if event_type == "depth_increase" and "first_depth" not in seen:
+            seen.add("first_depth")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"First depth increase to {data.get('new_depth', '?')}",
+                "layer": layer,
+            })
+
+        if event_type == "blindfold_activated" and "blindfold" not in seen:
+            seen.add("blindfold")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"BLINDFOLD activated at depth {data.get('depth', '?')}",
+                "layer": layer,
+            })
+
+        if event_type == "api_intercepted" and "first_intercept" not in seen:
+            seen.add("first_intercept")
+            domain = data.get("domain", "?")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"First API interception: {domain}",
+                "layer": layer,
+            })
+
+    # Add last event
+    if events:
+        last = events[-1]
+        moments.append({
+            "timestamp": last.get("timestamp", ""),
+            "event": "session_end",
+            "description": "Last recorded event",
+            "layer": last.get("layer", 0),
+        })
+
+    return moments
 
 
 def _query_orchestrator_containers():

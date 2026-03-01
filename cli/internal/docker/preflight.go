@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var requiredPorts = []int{2222, 8080, 9000}
+var requiredPorts = []int{22, 8080, 9000}
 
 // RunPreflight checks all prerequisites for Docker deployment.
 func RunPreflight() error {

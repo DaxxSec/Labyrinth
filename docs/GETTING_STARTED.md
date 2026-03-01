@@ -75,14 +75,14 @@ Your portal trap is now live:
 
 | Service | Address | Purpose |
 |---------|---------|---------|
-| SSH Portal Trap | `localhost:2222` | Point offensive agents here |
+| SSH Portal Trap | `localhost:22` | Point offensive agents here |
 | HTTP Portal Trap | `localhost:8080` | Web-based attack surface |
 | Web Dashboard | `http://localhost:9000` | Real-time web dashboard |
 | TUI Dashboard | `labyrinth tui` | Terminal monitoring dashboard |
 
 ## What Happens Next
 
-Point an offensive AI agent at `localhost:2222` (SSH) or `localhost:8080` (HTTP) and watch the captures flow in.
+Point an offensive AI agent at `localhost:22` (SSH) or `localhost:8080` (HTTP) and watch the captures flow in.
 
 See the [Testing Guide](TESTING.md) for setting up attacker agents, or jump straight to the [CLI Reference](CLI_REFERENCE.md) for all available commands.
 

@@ -36,7 +36,7 @@ Internet-facing portal trap services route connections into dynamically-spawned 
 
 | Component | Detail |
 |-----------|--------|
-| SSH | Port 2222, Ubuntu 22.04 staged template |
+| SSH | Port 22, Ubuntu 22.04 staged template |
 | HTTP | Port 8080, nginx vulnerable template |
 | Containers | Docker/Podman, bridge networking, egress proxy |
 

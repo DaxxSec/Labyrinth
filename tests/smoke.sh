@@ -40,9 +40,9 @@ for svc in labyrinth-ssh labyrinth-http labyrinth-orchestrator labyrinth-proxy l
 done
 
 # Probe the SSH portal trap
-info "Probing SSH portal trap on port 2222..."
+info "Probing SSH portal trap on port 22..."
 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes \
-    admin@localhost -p 2222 "ls /opt/.credentials" 2>/dev/null || true
+    admin@localhost -p 22 "ls /opt/.credentials" 2>/dev/null || true
 pass "SSH probe completed (connection attempt logged)"
 
 # Wait for event processing

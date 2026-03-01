@@ -66,7 +66,7 @@ func remapServices(services map[string]interface{}, cfg ComposeGenConfig) {
 	prefix := cfg.EnvName
 
 	portMap := map[string]string{
-		"2222:22":    fmt.Sprintf("%d:22", cfg.Ports.SSH),
+		"22:22":      fmt.Sprintf("%d:22", cfg.Ports.SSH),
 		"8080:80":    fmt.Sprintf("%d:80", cfg.Ports.HTTP),
 		"9000:9000":  fmt.Sprintf("%d:9000", cfg.Ports.Dashboard),
 	}

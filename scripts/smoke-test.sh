@@ -124,7 +124,7 @@ fi
 
 # Port availability — auto-teardown existing LABYRINTH if detected
 ports_blocked=false
-for port in 2222 8080 9000; do
+for port in 22 8080 9000; do
     if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
         ports_blocked=true
         break
@@ -147,7 +147,7 @@ if [ "$ports_blocked" = true ] && docker ps -a --filter "label=project=labyrinth
     info "Previous deployment stopped"
 fi
 
-for port in 2222 8080 9000; do
+for port in 22 8080 9000; do
     if lsof -i ":${port}" -sTCP:LISTEN > /dev/null 2>&1; then
         port_pid=$(lsof -ti ":${port}" -sTCP:LISTEN 2>/dev/null || echo "")
         port_cmd=$(ps -p "${port_pid}" -o comm= 2>/dev/null || echo "unknown")
@@ -299,7 +299,7 @@ stats_response=$(curl -s --max-time 10 http://localhost:9000/api/stats 2>/dev/nu
 assert_contains "Dashboard /api/stats returns active_sessions" "$stats_response" "active_sessions"
 
 # SSH port accepting connections
-assert "SSH portal trap accepting connections on :2222" nc -z -w 5 localhost 2222
+assert "SSH portal trap accepting connections on :22" nc -z -w 5 localhost 22
 
 # ══════════════════════════════════════════════════════════════
 #  Step 6: Exercise HTTP Bait Endpoints

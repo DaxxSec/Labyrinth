@@ -113,6 +113,37 @@ type ResetResponse struct {
 	Errors            []string `json:"errors"`
 }
 
+// SessionAnalysis holds post-mortem analysis data for a session.
+type SessionAnalysis struct {
+	SessionID       string            `json:"session_id"`
+	TotalEvents     int               `json:"total_events"`
+	DurationSeconds float64           `json:"duration_seconds"`
+	LayersReached   []int             `json:"layers_reached"`
+	MaxDepth        int               `json:"max_depth"`
+	ConfusionScore  int               `json:"confusion_score"`
+	Phases          []SessionPhase    `json:"phases"`
+	EventBreakdown  map[string]int    `json:"event_breakdown"`
+	KeyMoments      []KeyMoment       `json:"key_moments"`
+	L3Activated     bool              `json:"l3_activated"`
+	L4Active        bool              `json:"l4_active"`
+}
+
+// SessionPhase represents a behavioral phase within a session.
+type SessionPhase struct {
+	Phase  string `json:"phase"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
+	Events int    `json:"events"`
+}
+
+// KeyMoment represents a notable event in a session timeline.
+type KeyMoment struct {
+	Timestamp   string `json:"timestamp"`
+	Event       string `json:"event"`
+	Description string `json:"description"`
+	Layer       int    `json:"layer"`
+}
+
 // L4ModeResponse holds the current L4 interceptor mode.
 type L4ModeResponse struct {
 	Mode       string   `json:"mode"`

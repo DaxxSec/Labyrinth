@@ -304,7 +304,7 @@ func runBaitShow(cmd *cobra.Command, args []string) {
 	httpHost := targetHTTPHost()
 	sshPort := "22"
 	if sshHost == "localhost" {
-		sshPort = "2222"
+		sshPort = "22"
 	}
 	httpPort := "80"
 	if httpHost == "localhost" {
@@ -411,7 +411,7 @@ func plantWebBait(manifest BaitManifest) []string {
 	// terminals that aren't on the LABYRINTH network).
 	sshTarget := "host.docker.internal"
 	httpTarget := "host.docker.internal"
-	sshPort := "2222"
+	sshPort := "22"
 
 	u1 := manifest.Users[0]
 	u2 := manifest.Users[1]

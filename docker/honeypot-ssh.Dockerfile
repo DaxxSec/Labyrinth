@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     inotify-tools \
     xxd \
     libpam-modules \
+    sshpass \
     && rm -rf /var/lib/apt/lists/*
 
 # Create staged environment that looks like a real server
@@ -27,7 +28,12 @@ RUN useradd -m -s /bin/bash admin && \
 
 # SSH config: allow password auth (portal trap)
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    echo "" >> /etc/ssh/sshd_config && \
+    echo "# Forward bait-created users into session containers" >> /etc/ssh/sshd_config && \
+    echo "# admin is excluded (internal container user)" >> /etc/ssh/sshd_config && \
+    echo "Match User *,!admin" >> /etc/ssh/sshd_config && \
+    echo "    ForceCommand /opt/.labyrinth/session_forward.sh" >> /etc/ssh/sshd_config
 
 # PAM hook: notify orchestrator on successful auth
 COPY src/layer1_portal/auth_hook.py /opt/.labyrinth/auth_hook.py
@@ -46,10 +52,13 @@ RUN chmod +x /opt/.labyrinth/blindfold.sh
 # Session logging
 COPY src/layer1_portal/session_logger.py /opt/.labyrinth/session_logger.py
 
+# Session forwarding (L1 → L2 bridge)
+COPY src/layer1_portal/session_forward.sh /opt/.labyrinth/session_forward.sh
+
 # Bait watcher + entrypoint
 COPY src/layer1_portal/bait_watcher.sh /opt/.labyrinth/bait_watcher.sh
 COPY src/layer1_portal/entrypoint.sh /opt/.labyrinth/entrypoint.sh
-RUN chmod +x /opt/.labyrinth/bait_watcher.sh /opt/.labyrinth/entrypoint.sh
+RUN chmod +x /opt/.labyrinth/session_forward.sh /opt/.labyrinth/bait_watcher.sh /opt/.labyrinth/entrypoint.sh
 
 EXPOSE 22
 

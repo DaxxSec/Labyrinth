@@ -14,6 +14,11 @@ func renderSessions(a *App, height int) string {
 		return renderEmptySessions()
 	}
 
+	// Analysis view — post-mortem
+	if a.sessionView == 2 && a.sessionAnalysis != nil {
+		return renderSessionAnalysis(a, height)
+	}
+
 	// Detail view — full event timeline
 	if a.sessionView == 1 && a.sessionDetail != nil {
 		return renderSessionTimeline(a, height)
@@ -36,7 +41,7 @@ func renderEmptySessions() string {
 	b.WriteString("\n")
 	b.WriteString(StyleDim.Render("  No active sessions\n\n"))
 	b.WriteString(StyleDim.Render("  Waiting for connections to portal trap services...\n"))
-	b.WriteString(StyleDim.Render("  Point an offensive agent at the portal trap: localhost:2222 or localhost:8080\n"))
+	b.WriteString(StyleDim.Render("  Point an offensive agent at the portal trap: localhost:22 or localhost:8080\n"))
 	return b.String()
 }
 
@@ -240,7 +245,7 @@ func renderSessionTimeline(a *App, height int) string {
 		}
 
 		lStyle := getLayerStyle(ev.Layer)
-		details := formatEventData(ev.Data)
+		details := formatEventData(ev.Event, ev.Data)
 
 		b.WriteString(fmt.Sprintf("  %-10s %s  %-24s %s\n",
 			StyleDim.Render(ts),
@@ -260,6 +265,194 @@ func renderSessionTimeline(a *App, height int) string {
 	}
 
 	return b.String()
+}
+
+func renderSessionAnalysis(a *App, height int) string {
+	var b strings.Builder
+	an := a.sessionAnalysis
+
+	b.WriteString("\n")
+	b.WriteString(StyleBold.Render(fmt.Sprintf("  Session Analysis: %s", an.SessionID)))
+	b.WriteString("\n")
+	b.WriteString(StyleDim.Render(fmt.Sprintf("  %s", strings.Repeat("─", a.width-4))))
+	b.WriteString("\n\n")
+
+	// Duration
+	durStr := formatDuration(an.DurationSeconds)
+	b.WriteString(fmt.Sprintf("  Duration: %s    Events: %s    Max Depth: %s\n",
+		StyleValueCyan.Render(durStr),
+		StyleValueCyan.Render(fmt.Sprintf("%d", an.TotalEvents)),
+		StyleValuePurple.Render(fmt.Sprintf("%d", an.MaxDepth)),
+	))
+
+	// Confusion score bar
+	filled := an.ConfusionScore / 5 // 20 chars total
+	empty := 20 - filled
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", empty)
+	scoreStyle := StyleValueGreen
+	if an.ConfusionScore >= 60 {
+		scoreStyle = StyleValueRed
+	} else if an.ConfusionScore >= 30 {
+		scoreStyle = lipgloss.NewStyle().Foreground(ColorYellow)
+	}
+	b.WriteString(fmt.Sprintf("  Confusion Score: %s %s\n",
+		scoreStyle.Render(bar),
+		scoreStyle.Render(fmt.Sprintf("%d/100", an.ConfusionScore)),
+	))
+	b.WriteString("\n")
+
+	// Layers reached
+	if len(an.LayersReached) > 0 {
+		var badges []string
+		for _, l := range an.LayersReached {
+			badges = append(badges, getLayerStyle(l).Render(fmt.Sprintf("L%d", l)))
+		}
+		b.WriteString(fmt.Sprintf("  Layers Reached: %s", strings.Join(badges, " → ")))
+	}
+
+	l3Str := StyleDim.Render("inactive")
+	if an.L3Activated {
+		l3Str = StyleValueRed.Render("ACTIVATED")
+	}
+	l4Str := StyleDim.Render("inactive")
+	if an.L4Active {
+		l4Str = lipgloss.NewStyle().Foreground(ColorYellow).Bold(true).Render("ACTIVE")
+	}
+	b.WriteString(fmt.Sprintf("    L3 Blindfold: %s    L4 Intercept: %s\n", l3Str, l4Str))
+	b.WriteString("\n")
+
+	// Behavioral phases
+	if len(an.Phases) > 0 {
+		b.WriteString(StyleBold.Render("  ── Behavioral Phases "))
+		b.WriteString(StyleDim.Render(strings.Repeat("─", maxInt(1, a.width-26))))
+		b.WriteString("\n")
+
+		phaseLabels := map[string]string{
+			"reconnaissance":       "Reconnaissance",
+			"credential_discovery": "Credential Discovery",
+			"initial_access":       "Initial Access",
+			"escalation":           "Escalation",
+			"confusion":            "Confusion",
+			"blindfold":            "Blindfold",
+			"interception":         "Interception",
+		}
+
+		for _, p := range an.Phases {
+			label := phaseLabels[p.Phase]
+			if label == "" {
+				label = p.Phase
+			}
+			startTs := p.Start
+			if len(startTs) > 11 {
+				startTs = startTs[11:]
+			}
+			if len(startTs) > 8 {
+				startTs = startTs[:8]
+			}
+			endTs := p.End
+			if len(endTs) > 11 {
+				endTs = endTs[11:]
+			}
+			if len(endTs) > 8 {
+				endTs = endTs[:8]
+			}
+
+			b.WriteString(fmt.Sprintf("  ● %-22s %s - %s   %s\n",
+				StyleValueCyan.Render(label),
+				StyleDim.Render(startTs),
+				StyleDim.Render(endTs),
+				StyleSubtle.Render(fmt.Sprintf("%d events", p.Events)),
+			))
+		}
+		b.WriteString("\n")
+	}
+
+	// Key moments
+	if len(an.KeyMoments) > 0 {
+		b.WriteString(StyleBold.Render("  ── Key Moments "))
+		b.WriteString(StyleDim.Render(strings.Repeat("─", maxInt(1, a.width-20))))
+		b.WriteString("\n")
+
+		for _, m := range an.KeyMoments {
+			ts := m.Timestamp
+			if len(ts) > 11 {
+				ts = ts[11:]
+			}
+			if len(ts) > 8 {
+				ts = ts[:8]
+			}
+			lStyle := getLayerStyle(m.Layer)
+			b.WriteString(fmt.Sprintf("  %s  %s  %s\n",
+				StyleDim.Render(ts),
+				lStyle.Render(fmt.Sprintf("L%d", m.Layer)),
+				StyleDim.Render(m.Description),
+			))
+		}
+		b.WriteString("\n")
+	}
+
+	// Event breakdown
+	if len(an.EventBreakdown) > 0 {
+		b.WriteString(StyleBold.Render("  ── Event Breakdown "))
+		b.WriteString(StyleDim.Render(strings.Repeat("─", maxInt(1, a.width-24))))
+		b.WriteString("\n")
+
+		// Find max count for bar scaling
+		maxCount := 0
+		for _, c := range an.EventBreakdown {
+			if c > maxCount {
+				maxCount = c
+			}
+		}
+
+		// Sort keys for stable display
+		var types []string
+		for t := range an.EventBreakdown {
+			types = append(types, t)
+		}
+		// Simple sort
+		for i := 0; i < len(types); i++ {
+			for j := i + 1; j < len(types); j++ {
+				if an.EventBreakdown[types[i]] < an.EventBreakdown[types[j]] {
+					types[i], types[j] = types[j], types[i]
+				}
+			}
+		}
+
+		barWidth := 20
+		for _, t := range types {
+			count := an.EventBreakdown[t]
+			filled := barWidth
+			if maxCount > 0 {
+				filled = count * barWidth / maxCount
+			}
+			if filled < 1 && count > 0 {
+				filled = 1
+			}
+			bar := strings.Repeat("█", filled) + strings.Repeat(" ", barWidth-filled)
+			b.WriteString(fmt.Sprintf("  %-22s %s  %s\n",
+				StyleDim.Render(t),
+				StyleValueCyan.Render(bar),
+				StyleSubtle.Render(fmt.Sprintf("%d", count)),
+			))
+		}
+	}
+
+	return b.String()
+}
+
+func formatDuration(seconds float64) string {
+	if seconds < 60 {
+		return fmt.Sprintf("%.0fs", seconds)
+	}
+	mins := int(seconds) / 60
+	secs := int(seconds) % 60
+	if mins >= 60 {
+		hours := mins / 60
+		mins = mins % 60
+		return fmt.Sprintf("%dh %dm %ds", hours, mins, secs)
+	}
+	return fmt.Sprintf("%dm %ds", mins, secs)
 }
 
 func extractDepth(jsonLine string) int {

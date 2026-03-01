@@ -95,10 +95,26 @@
   .modal-header h2 { color: #00ccff; font-size: 14px; }
   .modal-close { background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; }
   .modal-close:hover { color: #c9d1d9; }
+  .modal-tabs { display: flex; gap: 0; border-bottom: 1px solid #1a1a2e; padding: 0 24px; }
+  .modal-tab { padding: 8px 16px; font-size: 12px; color: #484f58; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .modal-tab:hover { color: #8b949e; }
+  .modal-tab.active { color: #00ccff; border-bottom-color: #00ccff; }
   .modal-body { padding: 16px 24px; }
   .modal-meta { display: flex; gap: 24px; margin-bottom: 16px; }
   .modal-meta span { color: #8b949e; font-size: 12px; }
   .modal-meta .val { color: #c9d1d9; font-weight: bold; }
+  .confusion-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .confusion-bar .bar-track { width: 200px; height: 12px; background: #1a1a2e; border-radius: 6px; overflow: hidden; }
+  .confusion-bar .bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+  .phase-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; font-size: 12px; }
+  .phase-row .phase-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ccff; flex-shrink: 0; }
+  .phase-row .phase-name { min-width: 160px; color: #c9d1d9; }
+  .phase-row .phase-time { color: #484f58; min-width: 140px; }
+  .phase-row .phase-count { color: #8b949e; }
+  .breakdown-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 12px; }
+  .breakdown-row .bd-name { min-width: 160px; color: #8b949e; }
+  .breakdown-row .bd-bar { height: 10px; background: #00ccff40; border-radius: 3px; min-width: 2px; }
+  .breakdown-row .bd-count { color: #484f58; min-width: 40px; }
   .timeline-row { padding: 4px 0; font-size: 11px; display: flex; gap: 10px; }
   .timeline-row .tl-ts { color: #484f58; min-width: 70px; }
   .timeline-row .tl-ev { min-width: 160px; }
@@ -166,7 +182,7 @@
           <span id="session-count" style="color: #484f58; font-size: 11px;"></span>
         </div>
         <div class="panel-body" id="session-list">
-          <div class="empty"><div class="icon">&#127919;</div>Waiting for connections...<br><br><span style="color:#8b949e">Point an offensive agent at <code>localhost:2222</code> or <code>localhost:8080</code></span></div>
+          <div class="empty"><div class="icon">&#127919;</div>Waiting for connections...<br><br><span style="color:#8b949e">Point an offensive agent at <code>localhost:22</code> or <code>localhost:8080</code></span></div>
         </div>
       </div>
     </div>
@@ -206,7 +222,12 @@
         <h2 id="modal-title">Session Detail</h2>
         <button class="modal-close" onclick="closeModal()">&times;</button>
       </div>
+      <div class="modal-tabs">
+        <div class="modal-tab active" data-tab="timeline" onclick="switchModalTab('timeline')">Timeline</div>
+        <div class="modal-tab" data-tab="analysis" onclick="switchModalTab('analysis')">Analysis</div>
+      </div>
       <div class="modal-body" id="modal-body"></div>
+      <div class="modal-body" id="modal-analysis" style="display:none"></div>
     </div>
   </div>
 
@@ -219,13 +240,32 @@
       return d.innerHTML.replace(/'/g, '&#39;');
     }
 
-    function formatData(data) {
+    function formatData(data, eventType) {
       if (!data || typeof data !== 'object') return '';
-      return Object.entries(data).map(([k, v]) => {
-        let s = String(v);
-        if (s.length > 40) s = s.slice(0, 37) + '...';
-        return escHtml(k) + '=' + escHtml(s);
-      }).join(' ');
+      switch (eventType) {
+        case 'http_access':
+          return escHtml((data.method||'') + ' ' + (data.path||'') + ' \u2192 ' + (data.status||''));
+        case 'auth_attempt': case 'auth':
+          return escHtml((data.service||'ssh') + ' ' + (data.username||'') + '@' + (data.src_ip||''));
+        case 'connection':
+          return escHtml((data.service||'') + ' from ' + (data.source_ip||data.src_ip||''));
+        case 'command':
+          return escHtml(data.command || '');
+        case 'api_intercepted':
+          return escHtml((data.method||'') + ' ' + (data.domain||''));
+        case 'blindfold_activated':
+          return escHtml('depth=' + (data.depth||''));
+        case 'container_spawned':
+          return escHtml('container=' + (data.container_name||''));
+        case 'depth_increase':
+          return escHtml('depth ' + (data.old_depth||'') + ' \u2192 ' + (data.new_depth||''));
+        default:
+          return Object.entries(data).map(([k, v]) => {
+            let s = String(v);
+            if (s.length > 40) s = s.slice(0, 37) + '...';
+            return escHtml(k) + '=' + escHtml(s);
+          }).join(' ');
+      }
     }
 
     function layerClass(layer) {
@@ -238,7 +278,7 @@
         const base = apiBase || '';
         const [stats, events, auth, sessions, layers, containers] = await Promise.all([
           fetch(base + "/api/stats").then(r => r.json()),
-          fetch(base + "/api/events?limit=100").then(r => r.json()),
+          fetch(base + "/api/events?limit=500").then(r => r.json()),
           fetch(base + "/api/auth?limit=30").then(r => r.json()),
           fetch(base + "/api/sessions").then(r => r.json()),
           fetch(base + "/api/layers").then(r => r.json()),
@@ -262,7 +302,7 @@
             const ts = (ev.timestamp || '').slice(11, 19);
             const layer = ev.layer || 0;
             const sid = ev.session_id ? escHtml(ev.session_id).slice(0, 16) : '-';
-            const details = formatData(ev.data);
+            const details = formatData(ev.data, ev.event);
             return '<div class="event-row">' +
               '<span class="ts">' + escHtml(ts) + '</span>' +
               '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
@@ -349,6 +389,14 @@
         const data = await resp.json();
         if (data.error) return;
 
+        currentModalSessionId = sessionId;
+        // Reset tabs to timeline
+        document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.modal-tab[data-tab="timeline"]').classList.add('active');
+        document.getElementById('modal-body').style.display = '';
+        document.getElementById('modal-analysis').style.display = 'none';
+        document.getElementById('modal-analysis').innerHTML = '';
+
         document.getElementById("modal-title").textContent = data.session_id;
 
         let html = '<div class="modal-meta">';
@@ -366,7 +414,7 @@
           html += data.events.map(ev => {
             const ts = (ev.timestamp || '').slice(11, 19);
             const layer = ev.layer || 0;
-            const details = formatData(ev.data);
+            const details = formatData(ev.data, ev.event);
             return '<div class="timeline-row">' +
               '<span class="tl-ts">' + escHtml(ts) + '</span>' +
               '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
@@ -390,6 +438,106 @@
 
     function closeModal() {
       document.getElementById("modal-overlay").classList.remove("active");
+    }
+
+    let currentModalSessionId = '';
+
+    function switchModalTab(tab) {
+      document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.modal-tab[data-tab="' + tab + '"]').classList.add('active');
+      document.getElementById('modal-body').style.display = tab === 'timeline' ? '' : 'none';
+      document.getElementById('modal-analysis').style.display = tab === 'analysis' ? '' : 'none';
+      if (tab === 'analysis' && currentModalSessionId) {
+        loadSessionAnalysis(currentModalSessionId);
+      }
+    }
+
+    async function loadSessionAnalysis(sessionId) {
+      const el = document.getElementById('modal-analysis');
+      el.innerHTML = '<div class="empty">Loading analysis...</div>';
+      try {
+        const resp = await fetch((apiBase || '') + '/api/sessions/' + encodeURIComponent(sessionId) + '/analysis');
+        const data = await resp.json();
+        if (data.error) { el.innerHTML = '<div class="empty">Analysis unavailable</div>'; return; }
+
+        let html = '';
+
+        // Summary row
+        const durMin = Math.floor(data.duration_seconds / 60);
+        const durSec = Math.floor(data.duration_seconds % 60);
+        const durStr = durMin > 0 ? durMin + 'm ' + durSec + 's' : durSec + 's';
+        html += '<div class="modal-meta">';
+        html += '<span>Duration: <span class="val">' + escHtml(durStr) + '</span></span>';
+        html += '<span>Events: <span class="val">' + data.total_events + '</span></span>';
+        html += '<span>Max Depth: <span class="val">' + data.max_depth + '</span></span>';
+        html += '</div>';
+
+        // Confusion score
+        const score = data.confusion_score || 0;
+        let barColor = '#00ff88';
+        if (score >= 60) barColor = '#ff3366';
+        else if (score >= 30) barColor = '#ffaa00';
+        html += '<div class="confusion-bar">';
+        html += '<span style="color:#8b949e;font-size:12px;min-width:120px">Confusion Score</span>';
+        html += '<div class="bar-track"><div class="bar-fill" style="width:' + score + '%;background:' + barColor + '"></div></div>';
+        html += '<span style="color:' + barColor + ';font-weight:bold;font-size:14px">' + score + '/100</span>';
+        html += '</div>';
+
+        // Layer / L3 / L4 badges
+        html += '<div style="margin:8px 0 16px;display:flex;gap:12px;align-items:center">';
+        if (data.layers_reached) {
+          html += '<span style="color:#8b949e;font-size:12px">Layers: ';
+          html += data.layers_reached.map(function(l) { return '<span class="badge ' + layerClass(l) + '">L' + l + '</span>'; }).join(' → ');
+          html += '</span>';
+        }
+        html += '<span style="font-size:12px">L3: <span style="color:' + (data.l3_activated ? '#ff3366' : '#484f58') + ';font-weight:bold">' + (data.l3_activated ? 'ACTIVATED' : 'inactive') + '</span></span>';
+        html += '<span style="font-size:12px">L4: <span style="color:' + (data.l4_active ? '#ffaa00' : '#484f58') + ';font-weight:bold">' + (data.l4_active ? 'ACTIVE' : 'inactive') + '</span></span>';
+        html += '</div>';
+
+        // Phases
+        if (data.phases && data.phases.length > 0) {
+          html += '<div style="margin-bottom:16px">';
+          html += '<div style="color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold">Behavioral Phases</div>';
+          const phaseLabels = {reconnaissance:'Reconnaissance',credential_discovery:'Credential Discovery',initial_access:'Initial Access',escalation:'Escalation',confusion:'Confusion',blindfold:'Blindfold',interception:'Interception'};
+          data.phases.forEach(function(p) {
+            const label = phaseLabels[p.phase] || p.phase;
+            const st = (p.start||'').slice(11,19);
+            const en = (p.end||'').slice(11,19);
+            html += '<div class="phase-row"><span class="phase-dot"></span><span class="phase-name">' + escHtml(label) + '</span><span class="phase-time">' + escHtml(st) + ' - ' + escHtml(en) + '</span><span class="phase-count">' + p.events + ' events</span></div>';
+          });
+          html += '</div>';
+        }
+
+        // Key moments
+        if (data.key_moments && data.key_moments.length > 0) {
+          html += '<div style="margin-bottom:16px">';
+          html += '<div style="color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold">Key Moments</div>';
+          data.key_moments.forEach(function(m) {
+            const ts = (m.timestamp||'').slice(11,19);
+            const layer = m.layer || 0;
+            html += '<div class="timeline-row"><span class="tl-ts">' + escHtml(ts) + '</span><span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span><span class="tl-detail" style="color:#c9d1d9">' + escHtml(m.description) + '</span></div>';
+          });
+          html += '</div>';
+        }
+
+        // Event breakdown
+        if (data.event_breakdown) {
+          html += '<div>';
+          html += '<div style="color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold">Event Breakdown</div>';
+          const entries = Object.entries(data.event_breakdown).sort(function(a,b) { return b[1]-a[1]; });
+          const maxCount = entries.length > 0 ? entries[0][1] : 1;
+          entries.forEach(function(e) {
+            const pct = Math.max(2, (e[1] / maxCount) * 100);
+            html += '<div class="breakdown-row"><span class="bd-name">' + escHtml(e[0]) + '</span><div class="bd-bar" style="width:' + pct + '%"></div><span class="bd-count">' + e[1] + '</span></div>';
+          });
+          html += '</div>';
+        }
+
+        el.innerHTML = html;
+      } catch(e) {
+        el.innerHTML = '<div class="empty">Error loading analysis</div>';
+        console.log('Analysis error:', e);
+      }
     }
 
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });

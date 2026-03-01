@@ -15,7 +15,7 @@ type PortSet struct {
 }
 
 // TestPorts are the fixed ports used by test deployments.
-var TestPorts = PortSet{SSH: 2222, HTTP: 8080, Dashboard: 9000}
+var TestPorts = PortSet{SSH: 22, HTTP: 8080, Dashboard: 9000}
 
 const (
 	prodPortStart = 10000

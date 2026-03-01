@@ -177,7 +177,7 @@ func printPentAGIReady() {
 	// containers can reach the host-mapped ports.
 	sshHost := "host.docker.internal"
 	httpHost := "host.docker.internal"
-	sshPort := "2222"
+	sshPort := "22"
 	httpPort := "8080"
 
 	section("PentAGI is Ready")
@@ -251,9 +251,9 @@ func launchPentestAgentWith(provider, model string, envFlags []string) {
 	fmt.Printf("  %sLaunching interactive container with Kali tools...%s\n\n", bold, reset)
 	fmt.Printf("  %sInside the TUI, try:%s\n", dim, reset)
 	fmt.Printf("  %s  /agent Enumerate http://%s:8080 for leaked credentials,%s\n", dim, httpTarget, reset)
-	fmt.Printf("  %s         then use them to access SSH at %s:2222%s\n", dim, sshTarget, reset)
+	fmt.Printf("  %s         then use them to access SSH at %s:22%s\n", dim, sshTarget, reset)
 	fmt.Printf("  %s  /crew Full pentest: start with web recon on http://%s:8080,%s\n", dim, httpTarget, reset)
-	fmt.Printf("  %s        find credentials, pivot to SSH at %s:2222%s\n\n", dim, sshTarget, reset)
+	fmt.Printf("  %s        find credentials, pivot to SSH at %s:22%s\n\n", dim, sshTarget, reset)
 	fmt.Printf("  %sPress Ctrl+D or /quit to exit%s\n\n", dim, reset)
 
 	// Build docker run args
@@ -348,7 +348,7 @@ func printStrixInstructions(provider, model string) {
 	}
 	fmt.Printf("  %sexport LLM_API_KEY=<your-key>%s\n\n", dim, reset)
 	fmt.Printf("  %sstrix --target http://localhost:8080%s\n", cyan, reset)
-	fmt.Printf("  %sstrix --target localhost --instruction \"Pentest SSH on port 2222\"%s\n\n", cyan, reset)
+	fmt.Printf("  %sstrix --target localhost --instruction \"Pentest SSH on port 22\"%s\n\n", cyan, reset)
 	fmt.Printf("  %sNote: Strix launches its own Docker sandbox containers.%s\n", yellow, reset)
 	fmt.Printf("  %sResults saved to ./strix_runs/ in your working directory.%s\n\n", yellow, reset)
 }
@@ -397,7 +397,7 @@ func launchKali() {
 	fmt.Printf("  %sYou'll get a root shell with common pentest tools.%s\n", bold, reset)
 	fmt.Printf("  %sThe container is connected to the LABYRINTH network.%s\n\n", bold, reset)
 	fmt.Printf("  %sTargets from inside the container:%s\n", dim, reset)
-	fmt.Printf("  %s  SSH:   %s:22   (mapped from host :2222)%s\n", dim, sshTarget, reset)
+	fmt.Printf("  %s  SSH:   %s:22   (mapped from host :22)%s\n", dim, sshTarget, reset)
 	fmt.Printf("  %s  HTTP:  %s:80   (mapped from host :8080)%s\n", dim, httpTarget, reset)
 	fmt.Printf("  %s  Dash:  labyrinth-dashboard:9000%s\n\n", dim, reset)
 	fmt.Printf("  %sExample commands:%s\n", dim, reset)

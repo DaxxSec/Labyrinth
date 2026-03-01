@@ -50,10 +50,11 @@ type App struct {
 	containers      *api.ContainersResponse
 	layerStatuses   []api.LayerStatus
 	sessionDetail   *api.SessionDetail
+	sessionAnalysis *api.SessionAnalysis
 	prompts         []api.CapturedPrompt
 	logScrollOffset int
 	logFilterType   string // filter by event type on Logs tab
-	sessionView     int    // 0=list, 1=detail
+	sessionView     int    // 0=list, 1=detail, 2=analysis
 
 	// Previous counts for notification delta detection
 	prevSessionCount int
@@ -109,6 +110,10 @@ type sessionDetailMsg struct {
 type promptsMsg struct {
 	prompts []api.CapturedPrompt
 	err     error
+}
+type sessionAnalysisMsg struct {
+	analysis *api.SessionAnalysis
+	err      error
 }
 type l4ModeMsg struct {
 	mode string
@@ -216,8 +221,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.sessionView = 1
 				return a, a.fetchSessionDetailCmd()
 			}
+		case "a":
+			if a.activeTab == TabSessions && (a.sessionView == 1 || a.sessionView == 0) && len(a.sessions) > 0 {
+				a.sessionView = 2
+				return a, a.fetchSessionAnalysisCmd()
+			}
 		case "escape":
-			if a.activeTab == TabSessions && a.sessionView == 1 {
+			if a.activeTab == TabSessions && a.sessionView == 2 {
+				a.sessionView = 1
+				a.sessionAnalysis = nil
+			} else if a.activeTab == TabSessions && a.sessionView == 1 {
 				a.sessionView = 0
 				a.sessionDetail = nil
 			}
@@ -342,6 +355,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case promptsMsg:
 		if msg.err == nil {
 			a.prompts = msg.prompts
+		}
+
+	case sessionAnalysisMsg:
+		if msg.err == nil {
+			a.sessionAnalysis = msg.analysis
 		}
 
 	case l4ModeMsg:
@@ -516,10 +534,13 @@ func (a *App) renderHelp() string {
 	}
 	switch a.activeTab {
 	case TabSessions:
-		if a.sessionView == 1 {
-			return StyleHelp.Render(base + "  [Esc] back to list")
+		if a.sessionView == 2 {
+			return StyleHelp.Render(base + "  [Esc] back to timeline")
 		}
-		return StyleHelp.Render(base + "  [j/k] select  [Enter] detail")
+		if a.sessionView == 1 {
+			return StyleHelp.Render(base + "  [a] analysis  [Esc] back to list")
+		}
+		return StyleHelp.Render(base + "  [j/k] select  [Enter] detail  [a] analysis")
 	case TabLogs:
 		filterLabel := "all"
 		if a.logFilterType != "" {
@@ -593,6 +614,24 @@ func (a *App) fetchSessionDetailCmd() tea.Cmd {
 	}
 }
 
+func (a *App) fetchSessionAnalysisCmd() tea.Cmd {
+	if a.selectedSession >= len(a.sessions) {
+		return nil
+	}
+	sess := a.sessions[a.selectedSession]
+	sessionID := strings.TrimSuffix(sess.File, ".jsonl")
+	client := a.apiClient
+	return func() tea.Msg {
+		if client.Healthy() {
+			analysis, err := client.FetchSessionAnalysis(sessionID)
+			if err == nil {
+				return sessionAnalysisMsg{analysis: analysis}
+			}
+		}
+		return sessionAnalysisMsg{err: fmt.Errorf("analysis not available")}
+	}
+}
+
 // Commands
 func tickCmd() tea.Cmd {
 	return tea.Tick(refreshInterval, func(t time.Time) tea.Msg {
@@ -633,7 +672,7 @@ func fetchEnvsCmd() tea.Cmd {
 func fetchEventsCmd(client *api.Client, reader *forensics.Reader) tea.Cmd {
 	return func() tea.Msg {
 		if client.Healthy() {
-			events, err := client.FetchEvents(200)
+			events, err := client.FetchEvents(1000)
 			if err == nil {
 				return eventsMsg{events: events}
 			}

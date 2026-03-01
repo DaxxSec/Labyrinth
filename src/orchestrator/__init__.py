@@ -41,6 +41,47 @@ logger = logging.getLogger("labyrinth.orchestrator")
 _siem_client: SiemClient = None
 
 
+_SESSION_FORWARD_MAP_PATH = "/var/labyrinth/forensics/session_forward_map.json"
+
+
+def _update_forward_map(src_ip: str, container_ip: str):
+    """Write src_ip → container_ip mapping so labyrinth-ssh can forward sessions."""
+    import json
+
+    forward_map = {}
+    if os.path.exists(_SESSION_FORWARD_MAP_PATH):
+        try:
+            with open(_SESSION_FORWARD_MAP_PATH) as f:
+                forward_map = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    forward_map[src_ip] = container_ip
+
+    os.makedirs(os.path.dirname(_SESSION_FORWARD_MAP_PATH), exist_ok=True)
+    with open(_SESSION_FORWARD_MAP_PATH, "w") as f:
+        json.dump(forward_map, f, indent=2)
+
+    logger.info(f"Forward map: {src_ip} → {container_ip}")
+
+
+def _remove_forward_map(src_ip: str):
+    """Remove a src_ip entry from the session forward map."""
+    import json
+
+    if not os.path.exists(_SESSION_FORWARD_MAP_PATH):
+        return
+
+    try:
+        with open(_SESSION_FORWARD_MAP_PATH) as f:
+            forward_map = json.load(f)
+        forward_map.pop(src_ip, None)
+        with open(_SESSION_FORWARD_MAP_PATH, "w") as f:
+            json.dump(forward_map, f, indent=2)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+
 def _log_forensic_event(session_id: str, layer: int, event_type: str, data: dict = None):
     """Write a structured forensic event to the session log."""
     import json
@@ -278,6 +319,10 @@ class LabyrinthOrchestrator:
             session.container_id = container_id
             session.container_ip = container_ip
 
+            # Write forward map so labyrinth-ssh can route this attacker
+            # into the session container via ForceCommand
+            _update_forward_map(src_ip, container_ip)
+
             # L4: Register IP → session mapping for proxy correlation
             self.l4.register_session_ip(container_ip, session.session_id)
 
@@ -353,6 +398,9 @@ class LabyrinthOrchestrator:
             session.container_id = container_id
             session.container_ip = container_ip
 
+            # Update forward map so next SSH reconnect goes to new container
+            _update_forward_map(session.src_ip, container_ip)
+
             # Update L4 mapping
             self.l4.register_session_ip(container_ip, session.session_id)
 
@@ -417,6 +465,9 @@ class LabyrinthOrchestrator:
         session = self.session_mgr.remove_session(session_id)
         if not session:
             return
+
+        # Clean up forward map
+        _remove_forward_map(session.src_ip)
 
         _log_forensic_event(session_id, 0, "session_end", {
             "duration_seconds": session.age_seconds,

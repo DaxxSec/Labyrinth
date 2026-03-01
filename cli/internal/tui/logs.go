@@ -96,7 +96,7 @@ func renderLogs(a *App, height int) string {
 		eventStr := truncate(ev.Event, 20)
 
 		// Details from Data map
-		details := formatEventData(ev.Data)
+		details := formatEventData(ev.Event, ev.Data)
 
 		b.WriteString(fmt.Sprintf("  %-20s %s  %-22s %-14s %s\n",
 			StyleDim.Render(ts),
@@ -127,17 +127,43 @@ func getLayerStyle(layer int) lipgloss.Style {
 	}
 }
 
-func formatEventData(data map[string]interface{}) string {
+func formatEventData(eventType string, data map[string]interface{}) string {
 	if len(data) == 0 {
 		return ""
 	}
-	var parts []string
-	for k, v := range data {
-		s := fmt.Sprintf("%v", v)
-		if len(s) > 30 {
-			s = s[:27] + "..."
+	switch eventType {
+	case "http_access":
+		return fmt.Sprintf("%s %s → %v", str(data, "method"), str(data, "path"), data["status"])
+	case "auth_attempt", "auth":
+		return fmt.Sprintf("%s %s@%s", str(data, "service"), str(data, "username"), str(data, "src_ip"))
+	case "connection":
+		return fmt.Sprintf("%s from %s", str(data, "service"), str(data, "source_ip"))
+	case "command":
+		return str(data, "command")
+	case "api_intercepted":
+		return fmt.Sprintf("%s %s", str(data, "method"), str(data, "domain"))
+	case "blindfold_activated":
+		return fmt.Sprintf("depth=%v", data["depth"])
+	case "container_spawned":
+		return fmt.Sprintf("container=%s", str(data, "container_name"))
+	case "depth_increase":
+		return fmt.Sprintf("depth %v → %v", data["old_depth"], data["new_depth"])
+	default:
+		var parts []string
+		for k, v := range data {
+			s := fmt.Sprintf("%v", v)
+			if len(s) > 30 {
+				s = s[:27] + "..."
+			}
+			parts = append(parts, fmt.Sprintf("%s=%s", k, s))
 		}
-		parts = append(parts, fmt.Sprintf("%s=%s", k, s))
+		return strings.Join(parts, " ")
 	}
-	return strings.Join(parts, " ")
+}
+
+func str(data map[string]interface{}, key string) string {
+	if v, ok := data[key]; ok {
+		return fmt.Sprintf("%v", v)
+	}
+	return ""
 }

@@ -16,7 +16,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 AUTH_EVENTS_FILE = "/var/labyrinth/forensics/auth_events.jsonl"
-FORENSICS_DIR = "/var/labyrinth/forensics/sessions"
+FORENSICS_DIR = "/var/labyrinth/forensics"
 
 # ── Randomized identity (generated fresh each container boot) ─
 
@@ -235,16 +235,20 @@ def _log_auth_event(src_ip: str, username: str, password: str):
 
 
 def _log_http_event(src_ip: str, method: str, path: str, status: int):
-    """Write HTTP access event to forensic log."""
+    """Write HTTP access event to forensic log using standard schema."""
     os.makedirs(FORENSICS_DIR, exist_ok=True)
     event = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
+        "session_id": "",
+        "layer": 1,
         "event": "http_access",
-        "service": "http",
-        "src_ip": src_ip,
-        "method": method,
-        "path": path,
-        "status": status,
+        "data": {
+            "method": method,
+            "path": path,
+            "status": status,
+            "src_ip": src_ip,
+            "service": "http",
+        },
     }
     filepath = os.path.join(FORENSICS_DIR, "http.jsonl")
     with open(filepath, "a") as f:
