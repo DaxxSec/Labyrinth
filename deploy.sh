@@ -216,13 +216,21 @@ deploy_test() {
 
     section "Deploying Test Environment: ${env_name}"
 
-    info "Building honeypot container image..."
+    # Clean up stale networks/containers from previous deploys
+    docker ps -aq --filter "label=managed-by=orchestrator" --filter "label=type=worker" \
+        | xargs -r docker rm -f 2>/dev/null || true
+    COMPOSE_PROJECT_NAME="$compose_project" \
+        $COMPOSE_CMD -f docker-compose.yml down -v --remove-orphans 2>&1 || true
+    docker network ls --filter "name=${compose_project}" -q \
+        | xargs -r docker network rm 2>/dev/null || true
+
+    info "Building container images..."
     COMPOSE_PROJECT_NAME="$compose_project" \
         $COMPOSE_CMD -f docker-compose.yml build 2>&1 | while read -r line; do
         echo -e "    ${DIM}${line}${NC}"
     done
 
-    info "Starting LABYRINTH stack..."
+    info "Starting Labyrinth stack..."
     COMPOSE_PROJECT_NAME="$compose_project" \
         $COMPOSE_CMD -f docker-compose.yml up -d 2>&1
 
@@ -393,11 +401,17 @@ teardown_single() {
     case "$mode" in
         docker-compose|docker)
             compose_project=$(json_val "$json" "compose_project")
+            # Stop any dynamically-spawned session containers first
+            docker ps -aq --filter "label=managed-by=orchestrator" --filter "label=type=worker" \
+                | xargs -r docker rm -f 2>/dev/null || true
             info "Stopping containers for ${name} (project: ${compose_project})..."
             COMPOSE_PROJECT_NAME="$compose_project" \
-                $COMPOSE_CMD -f docker-compose.yml down -v 2>&1 || true
-            info "Removing LABYRINTH images for ${name}..."
-            docker images --filter "label=project=labyrinth" -q | xargs -r docker rmi 2>/dev/null || true
+                $COMPOSE_CMD -f docker-compose.yml down -v --remove-orphans 2>&1 || true
+            # Remove any lingering project networks
+            docker network ls --filter "name=${compose_project}" -q \
+                | xargs -r docker network rm 2>/dev/null || true
+            info "Removing images for ${name}..."
+            docker images --filter "label=managed-by=orchestrator" -q | xargs -r docker rmi 2>/dev/null || true
             ;;
         k8s)
             namespace=$(json_val "$json" "namespace")
