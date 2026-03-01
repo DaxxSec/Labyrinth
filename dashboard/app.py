@@ -4,7 +4,7 @@ Authors: DaxxSec & Claude (Anthropic)
 """
 
 from flask import Flask, render_template_string, jsonify, request
-import json, os, glob, urllib.request
+import json, os, glob, subprocess, urllib.request
 
 app = Flask(__name__)
 FORENSICS_DIR = "/var/labyrinth/forensics"
@@ -164,14 +164,20 @@ def events():
     # HTTP log events
     http_file = os.path.join(FORENSICS_DIR, "http.jsonl")
     for ev in _read_jsonl(http_file):
-        all_events.append({
-            "timestamp": ev.get("timestamp", ""),
-            "session_id": "",
-            "layer": 1,
-            "event": ev.get("event", "http_request"),
-            "data": ev,
-            "source": "http",
-        })
+        if "layer" in ev and "data" in ev and isinstance(ev["data"], dict):
+            # Already in standard schema — pass through
+            ev.setdefault("source", "http")
+            all_events.append(ev)
+        else:
+            # Legacy flat format — wrap
+            all_events.append({
+                "timestamp": ev.get("timestamp", ""),
+                "session_id": "",
+                "layer": 1,
+                "event": ev.get("event", "http_request"),
+                "data": {k: v for k, v in ev.items() if k not in ("timestamp", "session_id", "layer", "event")},
+                "source": "http",
+            })
 
     # Filter
     if event_type:
@@ -670,6 +676,45 @@ def prompts():
             i += 1
 
     return jsonify({"prompts": result})
+
+
+@app.route("/api/bait-identity")
+def bait_identity():
+    identity_file = os.path.join(FORENSICS_DIR, "bait_identity.json")
+    if not os.path.exists(identity_file):
+        return jsonify({"error": "no bait identity found"}), 404
+    with open(identity_file) as f:
+        data = json.load(f)
+    # Add bait file paths that are served by the HTTP honeypot
+    data["bait_paths"] = ["/.env", "/api/config", "/api/users", "/robots.txt", "/backup/db_dump.sql"]
+    # Add any CLI-dropped bait files from the web bait directory
+    bait_dir = "/var/labyrinth/bait/web"
+    if os.path.isdir(bait_dir):
+        for fname in os.listdir(bait_dir):
+            path = "/" + fname
+            if path not in data["bait_paths"]:
+                data["bait_paths"].append(path)
+    return jsonify(data)
+
+
+@app.route("/api/container-logs")
+def container_logs():
+    service = request.args.get("service", "")
+    lines = min(int(request.args.get("lines", 50)), 200)
+    if not service:
+        return jsonify({"error": "service parameter required"}), 400
+    allowed = {"honeypot-ssh", "honeypot-http", "orchestrator", "proxy", "dashboard"}
+    if service not in allowed:
+        return jsonify({"error": "unknown service"}), 400
+    try:
+        result = subprocess.run(
+            ["docker", "logs", "--tail", str(lines), "labyrinth-" + service.replace("-", "-") + "-1"],
+            capture_output=True, text=True, timeout=5
+        )
+        output = result.stdout + result.stderr
+        return jsonify({"service": service, "lines": output.strip().split("\n") if output.strip() else []})
+    except Exception as e:
+        return jsonify({"service": service, "lines": [], "error": str(e)})
 
 
 if __name__ == "__main__":

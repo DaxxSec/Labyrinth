@@ -23,15 +23,15 @@ RUN apt-get update && apt-get install -y \
 # Create staged environment that looks like a real server
 RUN useradd -m -s /bin/bash admin && \
     echo "admin:admin123" | chpasswd && \
+    echo "root:toor" | chpasswd && \
     mkdir -p /var/run/sshd && \
     mkdir -p /var/labyrinth/forensics/sessions
 
-# SSH config: allow password auth (portal trap)
+# SSH config: allow password auth, accept root (honeypot)
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     echo "" >> /etc/ssh/sshd_config && \
-    echo "# Forward bait-created users into session containers" >> /etc/ssh/sshd_config && \
-    echo "# admin is excluded (internal container user)" >> /etc/ssh/sshd_config && \
+    echo "# Forward all non-admin users into session containers" >> /etc/ssh/sshd_config && \
     echo "Match User *,!admin" >> /etc/ssh/sshd_config && \
     echo "    ForceCommand /opt/.labyrinth/session_forward.sh" >> /etc/ssh/sshd_config
 

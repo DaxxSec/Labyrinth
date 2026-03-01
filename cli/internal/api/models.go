@@ -170,3 +170,33 @@ type L4IntelSummary struct {
 type L4IntelResponse struct {
 	Intel []L4IntelSummary `json:"intel"`
 }
+
+// BaitUser represents a planted bait user identity.
+type BaitUser struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+	Uname string `json:"uname"`
+}
+
+// BaitIdentity holds the full bait identity generated for an environment.
+type BaitIdentity struct {
+	Company    string     `json:"company"`
+	Domain     string     `json:"domain"`
+	Users      []BaitUser `json:"users"`
+	DBPass     string     `json:"db_pass"`
+	RedisToken string     `json:"redis_token"`
+	AWSKeyID   string     `json:"aws_key_id"`
+	AWSSecret  string     `json:"aws_secret"`
+	JWTSecret  string     `json:"jwt_secret"`
+	APIKey     string     `json:"api_key"`
+	StripeKey  string     `json:"stripe_key"`
+	DeployKey  string     `json:"deploy_key"`
+	BaitPaths  []string   `json:"bait_paths"`
+}
+
+// ContainerLogs holds log output from a Docker container.
+type ContainerLogs struct {
+	Service string   `json:"service"`
+	Lines   []string `json:"lines"`
+	Error   string   `json:"error,omitempty"`
+}

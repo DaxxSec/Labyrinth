@@ -83,6 +83,15 @@ def _generate_identity():
 # Generated once at import time (container startup)
 _ID = _generate_identity()
 
+# Write identity to shared forensic volume so SSH honeypot can create matching users
+_IDENTITY_FILE = "/var/labyrinth/forensics/bait_identity.json"
+try:
+    os.makedirs(os.path.dirname(_IDENTITY_FILE), exist_ok=True)
+    with open(_IDENTITY_FILE, "w") as _f:
+        json.dump(_ID, _f, indent=2)
+except OSError:
+    pass  # Non-fatal if forensics dir isn't mounted
+
 # ── Bait content (all strings derived from _ID for anti-fingerprinting) ──
 
 _VERSIONS = ["3.2.1", "2.8.4", "4.1.0", "3.5.2", "2.11.3", "5.0.1"]
@@ -297,6 +306,10 @@ def _guess_content_type(path: str) -> str:
 
 class HoneypotHandler(BaseHTTPRequestHandler):
     """HTTP portal trap request handler."""
+
+    # Override server identifiers — suppress real Python/BaseHTTP fingerprint
+    server_version = "nginx/1.24.0"
+    sys_version = ""
 
     def log_message(self, format, *args):
         """Suppress default logging (we use our own)."""

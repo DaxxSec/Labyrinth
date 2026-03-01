@@ -24,10 +24,10 @@ func renderSessions(a *App, height int) string {
 		return renderSessionTimeline(a, height)
 	}
 
-	listWidth := a.width/2 - 1
+	listWidth := a.width*2/3 - 1
 	detailWidth := a.width - listWidth - 3
-	if listWidth < 30 {
-		listWidth = 30
+	if listWidth < 40 {
+		listWidth = 40
 	}
 
 	list := renderSessionList(a, listWidth, height)
@@ -52,14 +52,31 @@ func renderSessionList(a *App, width, height int) string {
 	b.WriteString(StyleBold.Render(header))
 	b.WriteString("\n")
 
-	headerLine := fmt.Sprintf("  %-18s %-8s %-6s %s", "ID", "EVENTS", "DEPTH", "LAST")
+	// Dynamic column widths based on available panel width
+	colLayer := 4  // "L3"
+	colEvents := 7 // "12345"
+	colDepth := 6  // "5"
+	colTime := 9   // "02:26:32"
+	fixedCols := colLayer + colEvents + colDepth + colTime + 8 // spacing
+	nameWidth := width - fixedCols - 2                         // 2 for prefix
+	if nameWidth < 20 {
+		nameWidth = 20
+	}
+
+	headerLine := fmt.Sprintf("  %s %s %s %s %s",
+		padRight("ID", nameWidth),
+		padRight("L", colLayer),
+		padRight("EVENTS", colEvents),
+		padRight("DEPTH", colDepth),
+		"LAST",
+	)
 	b.WriteString(StyleSubtle.Render(headerLine))
 	b.WriteString("\n")
 
 	maxRows := height - 4
 	// Reserve space for auth captures
 	if len(a.authEvents) > 0 {
-		maxRows -= min(len(a.authEvents)+3, 8)
+		maxRows -= min(len(a.authEvents)+3, 10)
 	}
 	if maxRows < 1 {
 		maxRows = 1
@@ -77,19 +94,31 @@ func renderSessionList(a *App, width, height int) string {
 			nameStyle = StyleValueGreen
 		}
 
-		name := truncate(strings.TrimSuffix(sess.File, ".jsonl"), 16)
+		name := truncate(strings.TrimSuffix(sess.File, ".jsonl"), nameWidth)
+
+		// Extract layer and depth from last event
+		layer := extractLayer(sess.Last)
+		lStyle := getLayerStyle(layer)
+		layerStr := lStyle.Render(fmt.Sprintf("L%d", layer))
+
 		depth := extractDepth(sess.Last)
 		depthStr := "-"
 		if depth > 0 {
 			depthStr = fmt.Sprintf("%d", depth)
 		}
 
-		b.WriteString(fmt.Sprintf("%s%-18s %-8d %-6s %s\n",
+		ts := extractTimestamp(sess.Last)
+		if len(ts) > colTime {
+			ts = ts[:colTime]
+		}
+
+		b.WriteString(fmt.Sprintf("%s%s %s %s %s %s\n",
 			prefix,
-			nameStyle.Render(name),
-			sess.Events,
-			StyleValuePurple.Render(depthStr),
-			StyleDim.Render(truncate(extractTimestamp(sess.Last), 12)),
+			padRight(nameStyle.Render(name), nameWidth),
+			padRight(layerStr, colLayer),
+			padRight(fmt.Sprintf("%d", sess.Events), colEvents),
+			padRight(StyleValuePurple.Render(depthStr), colDepth),
+			StyleDim.Render(ts),
 		))
 	}
 
@@ -99,23 +128,47 @@ func renderSessionList(a *App, width, height int) string {
 		b.WriteString(StyleBold.Render(fmt.Sprintf(" Credentials (%d)", len(a.authEvents))))
 		b.WriteString("\n")
 
-		maxAuth := min(len(a.authEvents), 5)
+		// Dynamic truncation based on available width
+		userWidth := (width - 24) / 3
+		if userWidth < 14 {
+			userWidth = 14
+		}
+		passWidth := (width - 24) / 4
+		if passWidth < 10 {
+			passWidth = 10
+		}
+
+		maxAuth := min(len(a.authEvents), 7)
 		for i := 0; i < maxAuth; i++ {
 			auth := a.authEvents[i]
-			svc := truncate(auth.Service, 4)
-			user := truncate(auth.Username, 12)
+
+			lBadge := getLayerStyle(1).Render("L1")
+			svc := truncate(auth.Service, 6)
+			user := truncate(auth.Username, userWidth)
 			pass := "****"
 			if auth.Password != "" {
-				pass = truncate(auth.Password, 8)
+				pass = truncate(auth.Password, passWidth)
 			}
-			ip := truncate(auth.SrcIP, 15)
 
-			b.WriteString(fmt.Sprintf("  %s %s:%s %s\n",
+			ts := ""
+			if len(auth.Timestamp) > 11 {
+				ts = auth.Timestamp[11:]
+				if len(ts) > 8 {
+					ts = ts[:8]
+				}
+			}
+
+			b.WriteString(fmt.Sprintf("  %s %s %s:%s %s %s\n",
+				lBadge,
 				StyleDim.Render(svc),
 				StyleValueCyan.Render(user),
 				StyleValueRed.Render(pass),
-				StyleDim.Render(ip),
+				StyleDim.Render(auth.SrcIP),
+				StyleDim.Render(ts),
 			))
+		}
+		if len(a.authEvents) > maxAuth {
+			b.WriteString(StyleDim.Render(fmt.Sprintf("  ... %d more\n", len(a.authEvents)-maxAuth)))
 		}
 	}
 
@@ -130,10 +183,16 @@ func renderSessionSidePanel(a *App, width, height int) string {
 	}
 
 	sess := a.sessions[a.selectedSession]
-	b.WriteString(StyleBold.Render(fmt.Sprintf(" %s", sess.File)))
+	sessName := strings.TrimSuffix(sess.File, ".jsonl")
+	b.WriteString(StyleBold.Render(fmt.Sprintf(" %s", sessName)))
 	b.WriteString("\n\n")
 
-	b.WriteString(StyleCardLabel.Render("  Events: "))
+	layer := extractLayer(sess.Last)
+	lStyle := getLayerStyle(layer)
+	b.WriteString(StyleCardLabel.Render("  Layer: "))
+	b.WriteString(lStyle.Render(fmt.Sprintf("L%d", layer)))
+	b.WriteString("  ")
+	b.WriteString(StyleCardLabel.Render("Events: "))
 	b.WriteString(StyleValueCyan.Render(fmt.Sprintf("%d", sess.Events)))
 	b.WriteString("\n")
 
@@ -145,7 +204,7 @@ func renderSessionSidePanel(a *App, width, height int) string {
 	}
 	b.WriteString("\n")
 
-	b.WriteString(StyleSubtle.Render("  Press [Enter] for full timeline"))
+	b.WriteString(StyleSubtle.Render("  [Enter] timeline  [a] analysis"))
 	b.WriteString("\n\n")
 
 	// Try to parse the last event for detail
@@ -465,6 +524,24 @@ func extractDepth(jsonLine string) int {
 				return int(depth)
 			}
 		}
+	}
+	return 0
+}
+
+func padRight(styled string, totalWidth int) string {
+	w := lipgloss.Width(styled)
+	if w >= totalWidth {
+		return styled
+	}
+	return styled + strings.Repeat(" ", totalWidth-w)
+}
+
+func extractLayer(jsonLine string) int {
+	var ev struct {
+		Layer int `json:"layer"`
+	}
+	if err := json.Unmarshal([]byte(jsonLine), &ev); err == nil {
+		return ev.Layer
 	}
 	return 0
 }

@@ -9,6 +9,7 @@ const (
 	TabLayers
 	TabAnalysis
 	TabLogs
+	TabEnvironment
 	tabCount // sentinel for wrap-around
 )
 
@@ -16,8 +17,9 @@ var tabNames = []string{
 	"Overview",
 	"Sessions",
 	"Layers",
-	"Analysis",
+	"Intel",
 	"Logs",
+	"Environment",
 }
 
 // Name returns the display name for a tab.

@@ -98,12 +98,27 @@ func renderLogs(a *App, height int) string {
 		// Details from Data map
 		details := formatEventData(ev.Event, ev.Data)
 
+		// Highlight bait and deception events
+		detailStyle := StyleDim
+		tag := ""
+		if isBaitEvent(ev) {
+			detailStyle = lipgloss.NewStyle().Foreground(ColorYellow).Bold(true)
+			tag = " [BAIT]"
+		} else if isDeceptionEvent(ev) {
+			detailStyle = StyleValuePurple
+			tag = " [DECEPTION]"
+		} else if ev.Event == "api_intercepted" {
+			detailStyle = lipgloss.NewStyle().Foreground(ColorYellow)
+		}
+
+		detailStr := truncate(details+tag, maxInt(1, a.width-70))
+
 		b.WriteString(fmt.Sprintf("  %-20s %s  %-22s %-14s %s\n",
 			StyleDim.Render(ts),
 			layerStr,
 			lStyle.Render(eventStr),
 			StyleValueCyan.Render(sessionStr),
-			StyleDim.Render(truncate(details, maxInt(1, a.width-70))),
+			detailStyle.Render(detailStr),
 		))
 	}
 
@@ -141,13 +156,50 @@ func formatEventData(eventType string, data map[string]interface{}) string {
 	case "command":
 		return str(data, "command")
 	case "api_intercepted":
-		return fmt.Sprintf("%s %s", str(data, "method"), str(data, "domain"))
+		s := fmt.Sprintf("%s %s", str(data, "method"), str(data, "domain"))
+		if str(data, "prompt_swapped") == "true" {
+			s += " (prompt swapped: " + str(data, "mode") + ")"
+		}
+		return s
+	case "api_response":
+		s := str(data, "domain")
+		if model := str(data, "model"); model != "" {
+			s += " model=" + model
+		}
+		if tc := str(data, "tool_call_count"); tc != "" && tc != "0" {
+			s += " tools=" + tc
+		}
+		return s
 	case "blindfold_activated":
 		return fmt.Sprintf("depth=%v", data["depth"])
+	case "proxy_interception_activated":
+		return fmt.Sprintf("proxy=%s depth=%v", str(data, "proxy_ip"), data["depth"])
 	case "container_spawned":
-		return fmt.Sprintf("container=%s", str(data, "container_name"))
+		s := fmt.Sprintf("ip=%s depth=%v", str(data, "container_ip"), data["depth"])
+		if density := str(data, "contradiction_density"); density != "" {
+			s += " contradictions=" + density
+		}
+		return s
 	case "depth_increase":
-		return fmt.Sprintf("depth %v → %v", data["old_depth"], data["new_depth"])
+		s := fmt.Sprintf("depth → %v", data["new_depth"])
+		if density := str(data, "density"); density != "" {
+			s += " contradictions=" + density
+		}
+		return s
+	case "escalation_detected", "escalation":
+		s := str(data, "type")
+		if file := str(data, "file"); file != "" {
+			s += " " + file
+		}
+		return s
+	case "container_ready":
+		if c := str(data, "contradictions"); c != "" {
+			return fmt.Sprintf("contradictions=%s", c)
+		}
+		return ""
+	case "session_end":
+		return fmt.Sprintf("duration=%vs depth=%v cmds=%v",
+			data["duration_seconds"], data["final_depth"], data["command_count"])
 	default:
 		var parts []string
 		for k, v := range data {
@@ -159,6 +211,35 @@ func formatEventData(eventType string, data map[string]interface{}) string {
 		}
 		return strings.Join(parts, " ")
 	}
+}
+
+// isBaitEvent returns true if the event involves bait file interaction.
+func isBaitEvent(ev api.ForensicEvent) bool {
+	if ev.Event == "escalation" || ev.Event == "escalation_detected" {
+		return true
+	}
+	if ev.Event == "http_access" {
+		path := str(ev.Data, "path")
+		for _, bp := range []string{"/.env", "/api/config", "/api/users", "/backup/"} {
+			if path == bp || strings.HasPrefix(path, bp) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isDeceptionEvent returns true if the event is L2 deception related.
+func isDeceptionEvent(ev api.ForensicEvent) bool {
+	if ev.Layer == 2 {
+		return true
+	}
+	if ev.Event == "container_spawned" {
+		if d := str(ev.Data, "contradiction_density"); d != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func str(data map[string]interface{}, key string) string {

@@ -73,6 +73,12 @@ type App struct {
 	// L4 mode control
 	l4Mode           string            // current L4 mode (passive/neutralize/double_agent/counter_intel)
 	l4Intel          []api.L4IntelSummary // captured intelligence summaries
+
+	// Environment tab
+	baitIdentity     *api.BaitIdentity              // bait identity from API
+	containerLogs    map[string]*api.ContainerLogs   // service → logs
+	selectedLogSvc   int                             // index into container log service list
+	envLogScroll     int                             // scroll offset for container logs panel
 }
 
 // Messages
@@ -126,6 +132,14 @@ type l4IntelMsg struct {
 type l4ModeSetMsg struct {
 	err error
 }
+type baitIdentityMsg struct {
+	identity *api.BaitIdentity
+	err      error
+}
+type containerLogsMsg struct {
+	logs *api.ContainerLogs
+	err  error
+}
 
 // NewApp creates a new TUI app. If targetEnv is non-empty, the TUI starts
 // focused on that environment.
@@ -138,6 +152,7 @@ func NewApp(targetEnv ...string) *App {
 		selectedEnv:   -1,
 		dashboardURLs: make(map[string]string),
 		l4Mode:        "passive",
+		containerLogs: make(map[string]*api.ContainerLogs),
 	}
 	if len(targetEnv) > 0 && targetEnv[0] != "" {
 		a.targetEnvName = targetEnv[0]
@@ -209,6 +224,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "5":
 			a.activeTab = GotoTab(4)
 			return a, a.tabFetchCmd()
+		case "6":
+			a.activeTab = GotoTab(5)
+			return a, a.tabFetchCmd()
 		case "r":
 			return a, tea.Batch(fetchDataCmd(a.apiClient, a.fileReader), a.tabFetchCmd())
 		case "e":
@@ -242,6 +260,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case TabLogs:
 				a.logScrollOffset++
+			case TabEnvironment:
+				a.envLogScroll++
 			}
 		case "k", "up":
 			switch a.activeTab {
@@ -253,6 +273,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if a.logScrollOffset > 0 {
 					a.logScrollOffset--
 				}
+			case TabEnvironment:
+				if a.envLogScroll > 0 {
+					a.envLogScroll--
+				}
+			}
+		case "s":
+			if a.activeTab == TabEnvironment {
+				a.selectedLogSvc = (a.selectedLogSvc + 1) % len(envLogServices)
+				a.envLogScroll = 0
+				return a, fetchContainerLogsCmd(a.apiClient, envLogServices[a.selectedLogSvc])
 			}
 		case "f":
 			if a.activeTab == TabLogs {
@@ -377,6 +407,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Refresh mode after set
 			return a, fetchL4ModeCmd(a.apiClient)
 		}
+
+	case baitIdentityMsg:
+		if msg.err == nil {
+			a.baitIdentity = msg.identity
+		}
+
+	case containerLogsMsg:
+		if msg.err == nil && msg.logs != nil {
+			a.containerLogs[msg.logs.Service] = msg.logs
+		}
 	}
 
 	return a, nil
@@ -430,6 +470,8 @@ func (a *App) View() tea.View {
 		b.WriteString(renderAnalysis(a, contentHeight))
 	case TabLogs:
 		b.WriteString(renderLogs(a, contentHeight))
+	case TabEnvironment:
+		b.WriteString(renderEnvironment(a, contentHeight))
 	}
 
 	// Help bar
@@ -525,7 +567,7 @@ func (a *App) renderTabBar() string {
 }
 
 func (a *App) renderHelp() string {
-	base := "  [Tab] switch  [1-5] direct  [m] L4 mode  [r] refresh  [q] quit"
+	base := "  [Tab] switch  [1-6] direct  [m] L4 mode  [r] refresh  [q] quit"
 	if len(a.environments) > 1 {
 		base += "  [e] env"
 	}
@@ -547,6 +589,9 @@ func (a *App) renderHelp() string {
 			filterLabel = a.logFilterType
 		}
 		return StyleHelp.Render(fmt.Sprintf("%s  [j/k] scroll  [f] filter (%s)", base, filterLabel))
+	case TabEnvironment:
+		svc := envLogServices[a.selectedLogSvc]
+		return StyleHelp.Render(fmt.Sprintf("%s  [j/k] scroll logs  [s] service (%s)", base, svc))
 	default:
 		return StyleHelp.Render(base)
 	}
@@ -574,6 +619,9 @@ func (a *App) tabFetchCmd() tea.Cmd {
 		cmds = append(cmds, fetchPromptsCmd(a.apiClient, a.fileReader))
 		cmds = append(cmds, fetchEventsCmd(a.apiClient, a.fileReader))
 		cmds = append(cmds, fetchL4IntelCmd(a.apiClient))
+	case TabEnvironment:
+		cmds = append(cmds, fetchBaitIdentityCmd(a.apiClient))
+		cmds = append(cmds, fetchContainerLogsCmd(a.apiClient, envLogServices[a.selectedLogSvc]))
 	}
 
 	if len(cmds) == 0 {
@@ -842,6 +890,29 @@ func fetchL4IntelCmd(client *api.Client) tea.Cmd {
 		}
 		intel, err := client.FetchL4Intel()
 		return l4IntelMsg{intel: intel, err: err}
+	}
+}
+
+// envLogServices is the list of services available for container log viewing.
+var envLogServices = []string{"honeypot-http", "honeypot-ssh", "orchestrator", "proxy", "dashboard"}
+
+func fetchBaitIdentityCmd(client *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		if !client.Healthy() {
+			return baitIdentityMsg{err: fmt.Errorf("not connected")}
+		}
+		identity, err := client.FetchBaitIdentity()
+		return baitIdentityMsg{identity: identity, err: err}
+	}
+}
+
+func fetchContainerLogsCmd(client *api.Client, service string) tea.Cmd {
+	return func() tea.Msg {
+		if !client.Healthy() {
+			return containerLogsMsg{err: fmt.Errorf("not connected")}
+		}
+		logs, err := client.FetchContainerLogs(service, 50)
+		return containerLogsMsg{logs: logs, err: err}
 	}
 }
 

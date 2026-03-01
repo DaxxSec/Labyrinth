@@ -4,7 +4,7 @@ import "testing"
 
 func TestTabNavigation(t *testing.T) {
 	current := TabOverview
-	expected := []Tab{TabSessions, TabLayers, TabAnalysis, TabLogs, TabOverview}
+	expected := []Tab{TabSessions, TabLayers, TabAnalysis, TabLogs, TabEnvironment, TabOverview}
 
 	for i, want := range expected {
 		current = NextTab(current)
@@ -18,8 +18,8 @@ func TestTabNavigation(t *testing.T) {
 func TestPrevTab(t *testing.T) {
 	current := TabOverview
 	prev := PrevTab(current)
-	if prev != TabLogs {
-		t.Errorf("PrevTab(Overview) = %s, want Logs", prev.Name())
+	if prev != TabEnvironment {
+		t.Errorf("PrevTab(Overview) = %s, want Environment", prev.Name())
 	}
 
 	prev = PrevTab(TabSessions)
@@ -31,14 +31,14 @@ func TestPrevTab(t *testing.T) {
 func TestTabDirectSelect(t *testing.T) {
 	tab := GotoTab(3)
 	if tab != TabAnalysis {
-		t.Errorf("GotoTab(3) = %s, want Analysis", tab.Name())
+		t.Errorf("GotoTab(3) = %s, want Intel", tab.Name())
 	}
 }
 
 func TestTabDirectSelectClamped(t *testing.T) {
 	tab := GotoTab(100)
-	if tab != TabLogs {
-		t.Errorf("GotoTab(100) = %s, want Logs (clamped)", tab.Name())
+	if tab != TabEnvironment {
+		t.Errorf("GotoTab(100) = %s, want Environment (clamped)", tab.Name())
 	}
 
 	tab = GotoTab(-1)
@@ -62,8 +62,9 @@ func TestTabNames(t *testing.T) {
 		{TabOverview, "Overview"},
 		{TabSessions, "Sessions"},
 		{TabLayers, "Layers"},
-		{TabAnalysis, "Analysis"},
+		{TabAnalysis, "Intel"},
 		{TabLogs, "Logs"},
+		{TabEnvironment, "Environment"},
 	}
 
 	for _, tt := range names {

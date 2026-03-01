@@ -154,6 +154,25 @@ func (c *Client) SetL4Mode(mode string) error {
 	return nil
 }
 
+// FetchBaitIdentity retrieves bait identity from /api/bait-identity.
+func (c *Client) FetchBaitIdentity() (*BaitIdentity, error) {
+	var identity BaitIdentity
+	if err := c.getJSON("/api/bait-identity", &identity); err != nil {
+		return nil, err
+	}
+	return &identity, nil
+}
+
+// FetchContainerLogs retrieves Docker container logs from /api/container-logs.
+func (c *Client) FetchContainerLogs(service string, lines int) (*ContainerLogs, error) {
+	var logs ContainerLogs
+	path := fmt.Sprintf("/api/container-logs?service=%s&lines=%d", service, lines)
+	if err := c.getJSON(path, &logs); err != nil {
+		return nil, err
+	}
+	return &logs, nil
+}
+
 // FetchL4Intel retrieves captured intelligence from /api/l4/intel.
 func (c *Client) FetchL4Intel() ([]L4IntelSummary, error) {
 	var resp L4IntelResponse
