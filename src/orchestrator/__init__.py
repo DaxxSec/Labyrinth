@@ -332,7 +332,7 @@ class LabyrinthOrchestrator:
                 if not cert_ok:
                     logger.warning(f"Session {session.session_id}: CA cert injection failed")
 
-                _log_forensic_event(session.session_id, 1, "container_spawned", {
+                _log_forensic_event(session.session_id, 2, "container_spawned", {
                     "container_id": container_id,
                     "container_ip": container_ip,
                     "depth": session.depth,
