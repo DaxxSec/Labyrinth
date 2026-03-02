@@ -306,8 +306,8 @@ class RequestHandler(BaseHTTPRequestHandler):
     sys_version = ""
 
     def log_message(self, format, *args):
-        """Suppress default logging (we use our own)."""
-        pass
+        """Log requests to stdout for container log visibility."""
+        print(format % args, flush=True)
 
     def _get_client_ip(self) -> str:
         return self.client_address[0]
@@ -377,7 +377,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 def main():
     port = int(os.environ.get("PORT", 80))
     server = HTTPServer(("0.0.0.0", port), RequestHandler)
-    print(f"[httpd] Listening on :{port}")
+    print(f"[httpd] Listening on :{port}", flush=True)
     server.serve_forever()
 
 
