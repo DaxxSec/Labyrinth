@@ -26,7 +26,7 @@ logger = logging.getLogger("labyrinth.puppeteer")
 FORENSICS_DIR = "/var/labyrinth/forensics"
 PROMPTS_DIR = os.path.join(FORENSICS_DIR, "prompts")
 INTEL_DIR = os.path.join(FORENSICS_DIR, "intel")
-SESSION_MAP_PATH = os.path.join(FORENSICS_DIR, "proxy_session_map.json")
+SESSION_MAP_PATH = os.path.join(FORENSICS_DIR, "proxy_map.json")
 MODE_FILE_PATH = os.path.join(FORENSICS_DIR, "l4_mode.json")
 
 # AI API domains we intercept
