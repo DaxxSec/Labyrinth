@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     wget \
     ca-certificates \
+    iptables \
     && rm -rf /var/lib/apt/lists/*
 
 # Default user and directories

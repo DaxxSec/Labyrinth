@@ -133,6 +133,7 @@ class ContainerManager:
                     "type": "worker",
                     "instance": session.session_id,
                 },
+                cap_add=["NET_ADMIN"],
                 mem_limit="256m",
                 cpu_period=100000,
                 cpu_quota=50000,  # 50% of one CPU

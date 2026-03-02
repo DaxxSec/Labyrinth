@@ -18,4 +18,4 @@ WORKDIR /app
 # Generate mitmproxy CA on first run
 RUN mitmdump --version || true
 
-CMD ["mitmdump", "--listen-port", "8443", "--set", "ssl_insecure=true", "-s", "/app/puppeteer/interceptor.py"]
+CMD ["mitmdump", "--mode", "transparent", "--listen-port", "8443", "--set", "ssl_insecure=true", "-s", "/app/puppeteer/interceptor.py"]
