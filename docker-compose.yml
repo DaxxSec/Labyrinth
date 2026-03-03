@@ -72,6 +72,10 @@ services:
     labels:
       project: labyrinth
       layer: "4"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     networks:
       labyrinth-net:
         ipv4_address: 172.30.0.50

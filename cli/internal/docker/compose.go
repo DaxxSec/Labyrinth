@@ -93,3 +93,10 @@ func RemoveLabyrinthImages() {
 	args := append([]string{"rmi"}, ids...)
 	exec.Command("docker", args...).Run()
 }
+
+// RemoveVolume removes a Docker volume by its compose-projected name.
+func RemoveVolume(name, project string) {
+	// Docker Compose prepends the project name to volume names
+	volumeName := project + "_" + name
+	exec.Command("docker", "volume", "rm", "-f", volumeName).Run()
+}

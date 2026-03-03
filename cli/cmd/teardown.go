@@ -91,6 +91,10 @@ func teardownSingle(reg *registry.Registry, env registry.Environment) {
 		info(fmt.Sprintf("Removing LABYRINTH images for %s...", env.Name))
 		docker.RemoveLabyrinthImages()
 
+		// Clean up forensic data volume to prevent stale data between deployments
+		info("Removing forensic data volume...")
+		docker.RemoveVolume("forensic-data", env.ComposeProject)
+
 		// Clean up environment directory for production deployments
 		if env.ComposeFile != "" {
 			envDir := filepath.Dir(env.ComposeFile)

@@ -495,7 +495,7 @@ async def _handle_postgres(reader: asyncio.StreamReader, writer: asyncio.StreamW
             if code == 80877103:
                 # Reject SSL, proceed unencrypted
                 writer.write(b"N")
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=30)
 
                 # Re-read startup message
                 header = await asyncio.wait_for(reader.readexactly(4), timeout=30)
@@ -532,7 +532,7 @@ async def _handle_postgres(reader: asyncio.StreamReader, writer: asyncio.StreamW
         # Rebuild properly
         auth_msg = b"R" + struct.pack("!I", 12) + struct.pack("!I", PG_AUTH_MD5) + salt
         writer.write(auth_msg)
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
         # Read password message: 'p' + len(4) + md5hash\0
         tag = await asyncio.wait_for(reader.readexactly(1), timeout=30)
@@ -576,15 +576,16 @@ async def _handle_postgres(reader: asyncio.StreamReader, writer: asyncio.StreamW
 
         # ReadyForQuery
         writer.write(_pg_ready_for_query())
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
-        # Query loop
+        # Query loop (30s timeout on all reads/drains to prevent FD leaks)
+        _T = 30
         while True:
             tag = await asyncio.wait_for(reader.readexactly(1), timeout=300)
             if tag == b"Q":
-                q_len_raw = await reader.readexactly(4)
+                q_len_raw = await asyncio.wait_for(reader.readexactly(4), timeout=_T)
                 q_len = struct.unpack("!I", q_len_raw)[0]
-                q_payload = await reader.readexactly(q_len - 4)
+                q_payload = await asyncio.wait_for(reader.readexactly(q_len - 4), timeout=_T)
                 query = q_payload.rstrip(b"\x00").decode("utf-8", errors="replace")
 
                 _log_event(session_id, "service_query", {
@@ -597,49 +598,49 @@ async def _handle_postgres(reader: asyncio.StreamReader, writer: asyncio.StreamW
 
                 response = _pg_handle_query(query, identity)
                 writer.write(response)
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
 
             elif tag == b"X":
                 # Terminate
                 break
             elif tag == b"P":
                 # Parse (extended query protocol) — read and skip
-                p_len = struct.unpack("!I", await reader.readexactly(4))[0]
-                await reader.readexactly(p_len - 4)
+                p_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
+                await asyncio.wait_for(reader.readexactly(p_len - 4), timeout=_T)
                 # Send ParseComplete
                 writer.write(b"1" + struct.pack("!I", 4))
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
             elif tag == b"B":
                 # Bind
-                b_len = struct.unpack("!I", await reader.readexactly(4))[0]
-                await reader.readexactly(b_len - 4)
+                b_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
+                await asyncio.wait_for(reader.readexactly(b_len - 4), timeout=_T)
                 writer.write(b"2" + struct.pack("!I", 4))
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
             elif tag == b"D":
                 # Describe
-                d_len = struct.unpack("!I", await reader.readexactly(4))[0]
-                await reader.readexactly(d_len - 4)
+                d_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
+                await asyncio.wait_for(reader.readexactly(d_len - 4), timeout=_T)
                 # Send NoData
                 writer.write(b"n" + struct.pack("!I", 4))
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
             elif tag == b"E":
                 # Execute
-                e_len = struct.unpack("!I", await reader.readexactly(4))[0]
-                await reader.readexactly(e_len - 4)
+                e_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
+                await asyncio.wait_for(reader.readexactly(e_len - 4), timeout=_T)
                 writer.write(_pg_command_complete("SELECT 0") + _pg_ready_for_query())
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
             elif tag == b"S":
                 # Sync
-                s_len = struct.unpack("!I", await reader.readexactly(4))[0]
-                await reader.readexactly(s_len - 4)
+                s_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
+                await asyncio.wait_for(reader.readexactly(s_len - 4), timeout=_T)
                 writer.write(_pg_ready_for_query())
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=_T)
             else:
                 # Unknown message — read length and skip
                 try:
-                    u_len = struct.unpack("!I", await reader.readexactly(4))[0]
+                    u_len = struct.unpack("!I", await asyncio.wait_for(reader.readexactly(4), timeout=_T))[0]
                     if u_len > 4:
-                        await reader.readexactly(u_len - 4)
+                        await asyncio.wait_for(reader.readexactly(u_len - 4), timeout=_T)
                 except Exception:
                     break
 
@@ -740,16 +741,20 @@ async def _parse_redis_command(reader: asyncio.StreamReader) -> list[str]:
     if line.startswith("*"):
         # Multibulk
         count = int(line[1:])
+        if count > 128:
+            return []
         args = []
         for _ in range(count):
-            bulk_line = await reader.readline()
+            bulk_line = await asyncio.wait_for(reader.readline(), timeout=30)
             bulk_str = bulk_line.decode("utf-8", errors="replace").strip()
             if bulk_str.startswith("$"):
                 length = int(bulk_str[1:])
                 if length < 0:
                     args.append("")
                     continue
-                data = await reader.readexactly(length + 2)  # +2 for \r\n
+                if length > 65536:
+                    return args
+                data = await asyncio.wait_for(reader.readexactly(length + 2), timeout=30)
                 args.append(data[:length].decode("utf-8", errors="replace"))
             else:
                 args.append(bulk_str)
@@ -813,7 +818,7 @@ async def _handle_redis(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
             elif cmd == "QUIT":
                 writer.write(_redis_simple_string("OK"))
-                await writer.drain()
+                await asyncio.wait_for(writer.drain(), timeout=10)
                 break
 
             elif cmd == "INFO":
@@ -901,7 +906,7 @@ async def _handle_redis(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             else:
                 writer.write(_redis_error(f"ERR unknown command '{args[0]}'"))
 
-            await writer.drain()
+            await asyncio.wait_for(writer.drain(), timeout=30)
 
     except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
@@ -1104,9 +1109,9 @@ async def _handle_elasticsearch(reader: asyncio.StreamReader, writer: asyncio.St
         else:
             writer.write(_http_response(404, json.dumps({"error": "no such index", "status": 404}), extra_headers=es_headers))
 
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
-    except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
+    except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
     except Exception as e:
         logger.debug("Elasticsearch handler error: %s", e)
@@ -1229,9 +1234,9 @@ async def _handle_consul(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         else:
             writer.write(_http_response(404, ""))
 
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
-    except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
+    except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
     except Exception as e:
         logger.debug("Consul handler error: %s", e)
@@ -1361,9 +1366,9 @@ async def _handle_jenkins(reader: asyncio.StreamReader, writer: asyncio.StreamWr
         else:
             writer.write(_http_response(404, json.dumps({"error": "not found"}), extra_headers=jenkins_headers))
 
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
-    except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
+    except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
     except Exception as e:
         logger.debug("Jenkins handler error: %s", e)
@@ -1392,7 +1397,7 @@ async def _handle_ssh_banner(reader: asyncio.StreamReader, writer: asyncio.Strea
     try:
         banner = _v("ssh_banner", "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6")
         writer.write((banner + "\r\n").encode())
-        await writer.drain()
+        await asyncio.wait_for(writer.drain(), timeout=30)
 
         # Read client banner
         client_banner = await asyncio.wait_for(reader.readline(), timeout=30)
@@ -1409,7 +1414,7 @@ async def _handle_ssh_banner(reader: asyncio.StreamReader, writer: asyncio.Strea
         # Hold connection open briefly to appear realistic
         await asyncio.sleep(5)
 
-    except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
+    except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
     except Exception as e:
         logger.debug("SSH banner handler error: %s", e)
@@ -1419,6 +1424,21 @@ async def _handle_ssh_banner(reader: asyncio.StreamReader, writer: asyncio.Strea
             await writer.wait_closed()
         except Exception:
             pass
+
+
+# ── Connection Limiting ────────────────────────────────────────
+
+MAX_CONCURRENT_CONNECTIONS = 200
+
+_conn_semaphore = None
+
+
+def _throttled(handler):
+    """Wrap a handler with a connection semaphore to prevent FD exhaustion."""
+    async def wrapper(reader, writer):
+        async with _conn_semaphore:
+            await handler(reader, writer)
+    return wrapper
 
 
 # ── Main ──────────────────────────────────────────────────────
@@ -1434,7 +1454,10 @@ SERVICE_PORTS = {
 
 
 async def main():
+    global _conn_semaphore
     logger.info("Starting network service handler...")
+
+    _conn_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CONNECTIONS)
 
     await _wait_for_identity()
     _generate_variants(_get_identity())
@@ -1442,7 +1465,7 @@ async def main():
     servers = []
     for port, (name, handler) in SERVICE_PORTS.items():
         try:
-            server = await asyncio.start_server(handler, "0.0.0.0", port)
+            server = await asyncio.start_server(_throttled(handler), "0.0.0.0", port)
             servers.append(server)
             logger.info("  %s listening on :%d", name, port)
         except OSError as e:
