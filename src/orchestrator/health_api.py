@@ -215,7 +215,14 @@ def reset():
     # Clear forensic data
     forensics_dir = "/var/labyrinth/forensics"
     files_cleared = 0
-    for pattern in ["sessions/*.jsonl", "auth_events.jsonl", "http.jsonl"]:
+    for pattern in [
+        "sessions/*.jsonl",
+        "auth_events.jsonl",
+        "http.jsonl",
+        "intel/*",
+        "prompts/*",
+        "proxy_map.json",
+    ]:
         for f in glob.glob(os.path.join(forensics_dir, pattern)):
             try:
                 os.remove(f)
