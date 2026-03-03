@@ -51,7 +51,9 @@ func renderLayers(a *App, height int) string {
 
 		// Status + session badge
 		statusText := fmt.Sprintf("[%s]", statusLabel)
-		if layer.Sessions > 0 {
+		if layer.Sessions == 1 {
+			statusText = fmt.Sprintf("[%s] 1 session", statusLabel)
+		} else if layer.Sessions > 1 {
 			statusText = fmt.Sprintf("[%s] %d sessions", statusLabel, layer.Sessions)
 		}
 		statusStr := statusStyle.Render(statusText)

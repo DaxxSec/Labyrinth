@@ -274,13 +274,11 @@ func (r *Reader) ComputeLayerStatus() ([]api.LayerStatus, error) {
 	files, _ := filepath.Glob(filepath.Join(sessionsDir, "*.jsonl"))
 
 	if len(files) > 0 {
-		// If we have any session data, L0 and L1 were active
 		layers[0].Status = "active"
 		layers[0].Detail = "Forensic data present"
-		layers[1].Status = "active"
-		layers[1].Detail = "Portal trap sessions recorded"
 	}
 
+	l1Sessions := make(map[string]bool)
 	l2Sessions := make(map[string]bool)
 	l3Sessions := make(map[string]bool)
 	l4Sessions := make(map[string]bool)
@@ -289,30 +287,56 @@ func (r *Reader) ComputeLayerStatus() ([]api.LayerStatus, error) {
 		events, _ := ParseJSONLFile(f)
 		for _, ev := range events {
 			switch ev.Event {
+			case "connection", "auth":
+				l1Sessions[ev.SessionID] = true
 			case "container_spawned", "depth_increase":
 				l2Sessions[ev.SessionID] = true
 			case "blindfold_activated":
 				l3Sessions[ev.SessionID] = true
-			case "api_intercepted":
+			case "api_intercepted", "service_connection", "service_auth", "service_query":
 				l4Sessions[ev.SessionID] = true
 			}
 		}
 	}
 
+	if len(l1Sessions) > 0 {
+		layers[1].Status = "active"
+		layers[1].Sessions = len(l1Sessions)
+		if len(l1Sessions) == 1 {
+			layers[1].Detail = "1 trapped session"
+		} else {
+			layers[1].Detail = fmt.Sprintf("%d trapped sessions", len(l1Sessions))
+		}
+	} else if len(files) > 0 {
+		layers[1].Status = "active"
+		layers[1].Detail = "Portal trap sessions recorded"
+	}
 	if len(l2Sessions) > 0 {
 		layers[2].Status = "active"
-		layers[2].Detail = "Adaptive filesystem engaged"
 		layers[2].Sessions = len(l2Sessions)
+		if len(l2Sessions) == 1 {
+			layers[2].Detail = "1 session navigating maze"
+		} else {
+			layers[2].Detail = fmt.Sprintf("%d sessions navigating maze", len(l2Sessions))
+		}
 	}
 	if len(l3Sessions) > 0 {
 		layers[3].Status = "active"
-		layers[3].Detail = "Blindfold activated"
 		layers[3].Sessions = len(l3Sessions)
+		if len(l3Sessions) == 1 {
+			layers[3].Detail = "1 session with blindfold"
+		} else {
+			layers[3].Detail = fmt.Sprintf("%d sessions with blindfold", len(l3Sessions))
+		}
 	}
 	if len(l4Sessions) > 0 {
 		layers[4].Status = "active"
-		layers[4].Detail = "API interception active"
 		layers[4].Sessions = len(l4Sessions)
+		if len(l4Sessions) == 1 {
+			layers[4].Detail = "1 intercepted session"
+		} else {
+			layers[4].Detail = fmt.Sprintf("%d intercepted sessions", len(l4Sessions))
+		}
 	}
 
 	return layers, nil

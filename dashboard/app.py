@@ -684,35 +684,40 @@ def layers():
         for ev in _read_jsonl(f):
             sid = ev.get("session_id", "")
             event_type = ev.get("event", "")
-            if event_type == "container_spawned":
+            if event_type in ("connection", "auth"):
                 l1_sessions.add(sid)
-            elif event_type == "depth_increase":
+            elif event_type in ("container_spawned", "depth_increase"):
                 l2_sessions.add(sid)
-            elif event_type == "encoding_activated":
+            elif event_type == "blindfold_activated":
                 l3_sessions.add(sid)
             elif event_type in ("api_intercepted", "service_connection", "service_auth", "service_query"):
                 l4_sessions.add(sid)
 
     if l1_sessions:
         existing_detail = layer_statuses[1]["detail"]
+        n = len(l1_sessions)
+        label = "1 trapped session" if n == 1 else f"{n} trapped sessions"
         if existing_detail:
-            layer_statuses[1]["detail"] = f"{existing_detail}, {len(l1_sessions)} trapped sessions"
+            layer_statuses[1]["detail"] = f"{existing_detail}, {label}"
         else:
-            layer_statuses[1]["detail"] = f"{len(l1_sessions)} trapped sessions"
-        layer_statuses[1]["sessions"] = len(l1_sessions)
+            layer_statuses[1]["detail"] = label
+        layer_statuses[1]["sessions"] = n
 
     if l2_sessions:
+        n = len(l2_sessions)
         layer_statuses[2]["status"] = "active"
-        layer_statuses[2]["detail"] = f"{len(l2_sessions)} sessions navigating maze"
-        layer_statuses[2]["sessions"] = len(l2_sessions)
+        layer_statuses[2]["detail"] = "1 session navigating maze" if n == 1 else f"{n} sessions navigating maze"
+        layer_statuses[2]["sessions"] = n
     if l3_sessions:
+        n = len(l3_sessions)
         layer_statuses[3]["status"] = "active"
-        layer_statuses[3]["detail"] = f"{len(l3_sessions)} sessions with blindfold"
-        layer_statuses[3]["sessions"] = len(l3_sessions)
+        layer_statuses[3]["detail"] = "1 session with blindfold" if n == 1 else f"{n} sessions with blindfold"
+        layer_statuses[3]["sessions"] = n
     if l4_sessions:
+        n = len(l4_sessions)
         layer_statuses[4]["status"] = "active"
-        layer_statuses[4]["detail"] = f"{len(l4_sessions)} intercepted sessions"
-        layer_statuses[4]["sessions"] = len(l4_sessions)
+        layer_statuses[4]["detail"] = "1 intercepted session" if n == 1 else f"{n} intercepted sessions"
+        layer_statuses[4]["sessions"] = n
 
     return jsonify({"layers": layer_statuses})
 
