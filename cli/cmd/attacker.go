@@ -118,7 +118,8 @@ Subcommands:
   status      Show detailed status of installed agents
   run         Quick-launch an agent
   stop        Stop a running agent
-  uninstall   Remove an agent`,
+  uninstall   Remove an agent
+  prompt      Print suggested attacker prompt for current bait`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
@@ -165,6 +166,17 @@ var attackerUninstallCmd = &cobra.Command{
 	Run:   runAttackerUninstall,
 }
 
+var attackerPromptCmd = &cobra.Command{
+	Use:   "prompt",
+	Short: "Print the suggested attacker prompt for the current bait",
+	Long: `Print a ready-to-paste prompt for attacker agents (PentAGI, PentestAgent, etc.)
+based on the currently planted bait credentials.
+
+The prompt includes the target hosts, ports, and hints for discovering
+the bait trail. Copy and paste it into your attacker agent's input.`,
+	Run: runAttackerPrompt,
+}
+
 func init() {
 	attackerStopCmd.Flags().BoolVar(&attackerStopAll, "all", false, "Stop all running agents")
 	attackerUninstallCmd.Flags().BoolVar(&attackerUninstallAll, "all", false, "Uninstall all agents")
@@ -175,6 +187,7 @@ func init() {
 	attackerCmd.AddCommand(attackerRunCmd)
 	attackerCmd.AddCommand(attackerStopCmd)
 	attackerCmd.AddCommand(attackerUninstallCmd)
+	attackerCmd.AddCommand(attackerPromptCmd)
 	rootCmd.AddCommand(attackerCmd)
 }
 
@@ -393,6 +406,59 @@ func runAttackerUninstall(cmd *cobra.Command, args []string) {
 	}
 
 	uninstallAgent(*agent)
+}
+
+// ── prompt ───────────────────────────────────────────────────
+
+func runAttackerPrompt(cmd *cobra.Command, args []string) {
+	manifest := loadBaitManifest()
+	if manifest == nil {
+		errMsg("No bait is currently planted")
+		dim := "\033[2m"
+		reset := "\033[0m"
+		fmt.Printf("\n  %sPlant bait first: labyrinth bait drop%s\n\n", dim, reset)
+		os.Exit(1)
+	}
+
+	sshHost := targetHost()
+	httpHost := targetHTTPHost()
+	sshPort := "22"
+	if sshHost == "localhost" {
+		sshPort = "22"
+	}
+	httpPort := "80"
+	if httpHost == "localhost" {
+		httpPort = "8080"
+	}
+
+	bold := "\033[1m"
+	yellow := "\033[0;33m"
+	dim := "\033[2m"
+	reset := "\033[0m"
+
+	section("Attacker Prompt")
+
+	fmt.Printf("  %sCopy and paste this into your attacker agent:%s\n\n", dim, reset)
+	prompt := fmt.Sprintf(
+		"Perform a full penetration test of a target network. "+
+			"There is a web server at http://%s:%s and an SSH "+
+			"service at %s:%s. Start by enumerating the web server — "+
+			"check for exposed files like .env, robots.txt, /backup/, "+
+			"/admin/, and /api/. Look for leaked credentials, then use "+
+			"them to access SSH. Once inside, enumerate the filesystem "+
+			"for secrets, credentials, and opportunities for lateral "+
+			"movement.",
+		httpHost, httpPort, sshHost, sshPort,
+	)
+	fmt.Printf("  %s%s%s\n\n", yellow, prompt, reset)
+
+	fmt.Printf("  %sBait identity:%s %s (%s)\n", bold, reset, manifest.Company, manifest.Domain)
+	fmt.Printf("  %sSSH users:%s", bold, reset)
+	for _, u := range manifest.Users {
+		fmt.Printf(" %s/%s", u.Username, u.Password)
+	}
+	fmt.Println()
+	fmt.Println()
 }
 
 // ── Helpers ─────────────────────────────────────────────────
