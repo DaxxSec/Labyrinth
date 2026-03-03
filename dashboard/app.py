@@ -589,6 +589,18 @@ def l4_mode_set():
         return jsonify({"error": str(e)}), 502
 
 
+@app.route("/api/l4/services")
+def l4_services():
+    """Proxy L4 service handler status to the orchestrator's health API."""
+    try:
+        url = "http://labyrinth-orchestrator:8888/api/l4/services"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return app.response_class(resp.read(), mimetype="application/json")
+    except Exception:
+        return jsonify({"services": [], "event_counts": {}, "protocol_breakdown": {}})
+
+
 @app.route("/api/l4/intel")
 def l4_intel():
     """Return captured L4 intelligence summaries."""

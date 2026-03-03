@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -129,6 +130,9 @@ func deployTest(envName string) {
 	info("Waiting for services to initialize...")
 	time.Sleep(3 * time.Second)
 
+	// Post-deploy health verification
+	verifyDeployHealth()
+
 	reg := registry.New("")
 	env := registry.Environment{
 		Name:           envName,
@@ -182,6 +186,7 @@ func deployTest(envName string) {
 	fmt.Println()
 	fmt.Printf("  %sTeardown:  labyrinth teardown %s%s\n", dim, envName, reset)
 	fmt.Printf("  %sStatus:    labyrinth status %s%s\n", dim, envName, reset)
+	fmt.Printf("  %sDoctor:    labyrinth doctor%s           %sVerify all services%s\n", dim, reset, dim, reset)
 	fmt.Printf("  %sAll envs:  labyrinth list%s\n", dim, reset)
 	fmt.Println()
 }
@@ -301,6 +306,9 @@ func deployProdDocker(envName string) {
 	info("Waiting for services to initialize...")
 	time.Sleep(3 * time.Second)
 
+	// Post-deploy health verification
+	verifyDeployHealth()
+
 	// Register environment
 	dashboardURL := fmt.Sprintf("http://localhost:%d", ports.Dashboard)
 	env := registry.Environment{
@@ -408,6 +416,66 @@ func showProdTypes() {
 	fmt.Println("             Globally distributed portal traps via Fly.io or similar.")
 	fmt.Printf("             %slabyrinth deploy -p <name> --edge%s\n", dim, reset)
 	fmt.Println()
+}
+
+func verifyDeployHealth() {
+	green := "\033[0;32m"
+	yellow := "\033[1;33m"
+	reset := "\033[0m"
+
+	// Check core containers are running
+	out, err := exec.Command("docker", "ps", "--filter", "label=project=labyrinth",
+		"--format", "{{.Names}}\t{{.State}}").Output()
+	if err != nil {
+		warn("Could not verify container status")
+		return
+	}
+
+	required := map[string]bool{
+		"labyrinth-ssh":          false,
+		"labyrinth-http":         false,
+		"labyrinth-orchestrator": false,
+		"labyrinth-proxy":        false,
+		"labyrinth-dashboard":    false,
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) == 2 && parts[1] == "running" {
+			if _, ok := required[parts[0]]; ok {
+				required[parts[0]] = true
+			}
+		}
+	}
+
+	allUp := true
+	for name, running := range required {
+		if !running {
+			allUp = false
+			warn(fmt.Sprintf("%s is not running — check: docker logs %s", name, name))
+		}
+	}
+
+	if allUp {
+		fmt.Printf("  %s[+]%s All 5 core containers verified running\n", green, reset)
+	}
+
+	// Verify proxy is using start.sh (not old mitmdump-only CMD)
+	inspectOut, err := exec.Command("docker", "inspect", "--format",
+		"{{index .Config.Cmd 0}}", "labyrinth-proxy").Output()
+	if err == nil {
+		entrypoint := strings.TrimSpace(string(inspectOut))
+		if !strings.Contains(entrypoint, "start.sh") {
+			fmt.Printf("  %s[!]%s Proxy is running an outdated image (missing phantom services)\n", yellow, reset)
+			fmt.Printf("      Rebuild: docker compose build --no-cache proxy && docker compose up -d proxy\n")
+		}
+	}
+
+	// Check phantom services started
+	logsOut, _ := exec.Command("docker", "logs", "--tail", "20", "labyrinth-proxy").CombinedOutput()
+	if strings.Contains(string(logsOut), "All services ready") {
+		fmt.Printf("  %s[+]%s Phantom services operational (6/6)\n", green, reset)
+	}
 }
 
 func findComposeFile() string {
