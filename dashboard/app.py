@@ -674,7 +674,8 @@ def layers():
     except Exception:
         pass
 
-    # Scan session events for L2/L3/L4
+    # Scan session events for L1 sessions / L2 / L3 / L4
+    l1_sessions = set()
     l2_sessions = set()
     l3_sessions = set()
     l4_sessions = set()
@@ -683,16 +684,26 @@ def layers():
         for ev in _read_jsonl(f):
             sid = ev.get("session_id", "")
             event_type = ev.get("event", "")
-            if event_type in ("container_spawned", "depth_increase"):
+            if event_type == "container_spawned":
+                l1_sessions.add(sid)
+            elif event_type == "depth_increase":
                 l2_sessions.add(sid)
             elif event_type == "encoding_activated":
                 l3_sessions.add(sid)
             elif event_type in ("api_intercepted", "service_connection", "service_auth", "service_query"):
                 l4_sessions.add(sid)
 
+    if l1_sessions:
+        existing_detail = layer_statuses[1]["detail"]
+        if existing_detail:
+            layer_statuses[1]["detail"] = f"{existing_detail}, {len(l1_sessions)} trapped sessions"
+        else:
+            layer_statuses[1]["detail"] = f"{len(l1_sessions)} trapped sessions"
+        layer_statuses[1]["sessions"] = len(l1_sessions)
+
     if l2_sessions:
         layer_statuses[2]["status"] = "active"
-        layer_statuses[2]["detail"] = f"{len(l2_sessions)} sessions with depth > 1"
+        layer_statuses[2]["detail"] = f"{len(l2_sessions)} sessions navigating maze"
         layer_statuses[2]["sessions"] = len(l2_sessions)
     if l3_sessions:
         layer_statuses[3]["status"] = "active"
@@ -771,8 +782,8 @@ def container_logs():
     if not service:
         return jsonify({"error": "service parameter required"}), 400
     allowed_services = {
-        "honeypot-ssh": "labyrinth-ssh",
-        "honeypot-http": "labyrinth-http",
+        "labyrinth-ssh": "labyrinth-ssh",
+        "labyrinth-http": "labyrinth-http",
         "orchestrator": "labyrinth-orchestrator",
         "proxy": "labyrinth-proxy",
         "dashboard": "labyrinth-dashboard",

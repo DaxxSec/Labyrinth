@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/DaxxSec/labyrinth/cli/internal/api"
@@ -15,16 +16,7 @@ func renderLogs(a *App, height int) string {
 	b.WriteString(StyleBold.Render("  Event Log"))
 
 	// Get filtered events
-	var events []api.ForensicEvent
-	if a.logFilterType != "" {
-		for _, ev := range a.allEvents {
-			if ev.Event == a.logFilterType {
-				events = append(events, ev)
-			}
-		}
-	} else {
-		events = a.allEvents
-	}
+	events := a.filteredLogEvents()
 
 	total := len(events)
 	if total == 0 && len(a.allEvents) == 0 {
@@ -40,24 +32,57 @@ func renderLogs(a *App, height int) string {
 		return b.String()
 	}
 
+	// Clamp cursor
+	if a.logCursorPos >= total {
+		a.logCursorPos = total - 1
+	}
+	if a.logCursorPos < 0 {
+		a.logCursorPos = 0
+	}
+
 	maxLines := height - 5
 	if maxLines < 1 {
 		maxLines = 10
 	}
 
-	// Clamp scroll offset
-	if a.logScrollOffset > total-maxLines {
-		a.logScrollOffset = maxInt(0, total-maxLines)
+	// Compute visual line count for each event
+	visualLines := make([]int, total)
+	totalVisualLines := 0
+	for i, ev := range events {
+		if a.logExpandedRows[i] && isExpandable(ev) {
+			visualLines[i] = 1 + len(ev.Data)
+		} else {
+			visualLines[i] = 1
+		}
+		totalVisualLines += visualLines[i]
 	}
 
-	endIdx := a.logScrollOffset + maxLines
-	if endIdx > total {
-		endIdx = total
+	// Auto-scroll viewport to keep cursor visible
+	// Find visual line offset of cursor row
+	cursorVisualStart := 0
+	for i := 0; i < a.logCursorPos; i++ {
+		cursorVisualStart += visualLines[i]
+	}
+	cursorVisualEnd := cursorVisualStart + visualLines[a.logCursorPos]
+
+	// Clamp scroll to valid range
+	if a.logScrollOffset > totalVisualLines-maxLines {
+		a.logScrollOffset = maxInt(0, totalVisualLines-maxLines)
+	}
+	if a.logScrollOffset < 0 {
+		a.logScrollOffset = 0
+	}
+
+	// Ensure cursor is visible
+	if cursorVisualStart < a.logScrollOffset {
+		a.logScrollOffset = cursorVisualStart
+	}
+	if cursorVisualEnd > a.logScrollOffset+maxLines {
+		a.logScrollOffset = cursorVisualEnd - maxLines
 	}
 
 	// Status line
-	b.WriteString(StyleDim.Render(fmt.Sprintf("  Showing %d-%d of %d events",
-		a.logScrollOffset+1, endIdx, total)))
+	b.WriteString(StyleDim.Render(fmt.Sprintf("  %d events", total)))
 	if a.logFilterType != "" {
 		b.WriteString(StyleDim.Render(fmt.Sprintf("  [filter: %s]", a.logFilterType)))
 	}
@@ -65,64 +90,195 @@ func renderLogs(a *App, height int) string {
 
 	// Header
 	b.WriteString(fmt.Sprintf("  %s\n",
-		StyleSubtle.Render(fmt.Sprintf("%-20s %-6s %-22s %-14s %s", "TIMESTAMP", "LAYER", "EVENT", "SESSION", "DETAILS"))))
+		StyleSubtle.Render(fmt.Sprintf("  %-20s %-6s %-22s %-14s %s", "TIMESTAMP", "LAYER", "EVENT", "SESSION", "DETAILS"))))
 	b.WriteString(fmt.Sprintf("  %s\n",
 		StyleDim.Render(strings.Repeat("─", a.width-4))))
 
-	// Event rows
-	for i := a.logScrollOffset; i < endIdx && i < total; i++ {
+	// Visual-line-aware rendering
+	// Skip events until we reach logScrollOffset visual lines
+	linesRendered := 0
+	visualLineAccum := 0
+
+	for i := 0; i < total && linesRendered < maxLines; i++ {
+		evVisLines := visualLines[i]
+
+		// Skip events entirely before scroll offset
+		if visualLineAccum+evVisLines <= a.logScrollOffset {
+			visualLineAccum += evVisLines
+			continue
+		}
+
 		ev := events[i]
+		isCursor := i == a.logCursorPos
+		expanded := a.logExpandedRows[i] && isExpandable(ev)
 
-		// Color by layer
-		lStyle := getLayerStyle(ev.Layer)
-		layerStr := lStyle.Render(fmt.Sprintf("L%d", ev.Layer))
-
-		// Timestamp — show just time portion
-		ts := ev.Timestamp
-		if len(ts) > 11 {
-			ts = ts[11:]
+		// How many lines of this event are above the scroll window?
+		skipLines := 0
+		if visualLineAccum < a.logScrollOffset {
+			skipLines = a.logScrollOffset - visualLineAccum
 		}
-		if len(ts) > 8 {
-			ts = ts[:8]
-		}
+		visualLineAccum += evVisLines
 
-		// Session ID — truncate
-		sessionStr := truncate(ev.SessionID, 12)
-		if sessionStr == "" {
-			sessionStr = "-"
-		}
-
-		// Event type
-		eventStr := truncate(ev.Event, 20)
-
-		// Details from Data map
-		details := formatEventData(ev.Event, ev.Data)
-
-		// Highlight bait and deception events
-		detailStyle := StyleDim
-		tag := ""
-		if isBaitEvent(ev) {
-			detailStyle = lipgloss.NewStyle().Foreground(ColorYellow).Bold(true)
-			tag = " [BAIT]"
-		} else if isDeceptionEvent(ev) {
-			detailStyle = StyleValuePurple
-			tag = " [DECEPTION]"
-		} else if ev.Event == "api_intercepted" {
-			detailStyle = lipgloss.NewStyle().Foreground(ColorYellow)
+		// Render summary line (line 0 of this event)
+		if skipLines == 0 && linesRendered < maxLines {
+			summaryLine := renderSummaryLine(a, ev, i, isCursor, expanded)
+			b.WriteString(summaryLine)
+			b.WriteString("\n")
+			linesRendered++
+		} else if skipLines > 0 {
+			skipLines--
 		}
 
-		detailStr := truncate(details+tag, maxInt(1, a.width-70))
-
-		b.WriteString(fmt.Sprintf("  %-20s %s  %-22s %-14s %s\n",
-			StyleDim.Render(ts),
-			layerStr,
-			lStyle.Render(eventStr),
-			StyleValueCyan.Render(sessionStr),
-			detailStyle.Render(detailStr),
-		))
+		// Render detail lines if expanded
+		if expanded {
+			detailLines := renderDetailLines(ev, a.width)
+			for _, dl := range detailLines {
+				if skipLines > 0 {
+					skipLines--
+					continue
+				}
+				if linesRendered >= maxLines {
+					break
+				}
+				if isCursor {
+					b.WriteString(StyleCursorRow.Render(dl))
+				} else {
+					b.WriteString(dl)
+				}
+				b.WriteString("\n")
+				linesRendered++
+			}
+		}
 	}
 
 	return b.String()
+}
+
+// renderSummaryLine renders a single event row (the collapsed/summary line).
+func renderSummaryLine(a *App, ev api.ForensicEvent, idx int, isCursor, expanded bool) string {
+	// Expand indicator
+	indicator := "  "
+	if isExpandable(ev) {
+		if expanded {
+			indicator = "▾ "
+		} else {
+			indicator = "▸ "
+		}
+	}
+
+	// Color by layer
+	lStyle := getLayerStyle(ev.Layer)
+	layerStr := lStyle.Render(fmt.Sprintf("L%d", ev.Layer))
+
+	// Timestamp — show just time portion
+	ts := ev.Timestamp
+	if len(ts) > 11 {
+		ts = ts[11:]
+	}
+	if len(ts) > 8 {
+		ts = ts[:8]
+	}
+
+	// Session ID — truncate
+	sessionStr := truncate(ev.SessionID, 12)
+	if sessionStr == "" {
+		sessionStr = "-"
+	}
+
+	// Event type
+	eventStr := truncate(ev.Event, 20)
+
+	// Details from Data map
+	details := formatEventData(ev.Event, ev.Data)
+
+	// Highlight bait and deception events
+	detailStyle := StyleDim
+	tag := ""
+	if isBaitEvent(ev) {
+		detailStyle = lipgloss.NewStyle().Foreground(ColorYellow).Bold(true)
+		tag = " [BAIT]"
+	} else if isDeceptionEvent(ev) {
+		detailStyle = StyleValuePurple
+		tag = " [DECEPTION]"
+	} else if ev.Event == "api_intercepted" {
+		detailStyle = lipgloss.NewStyle().Foreground(ColorYellow)
+	}
+
+	detailStr := truncate(details+tag, maxInt(1, a.width-72))
+
+	line := fmt.Sprintf("  %s%-20s %s  %-22s %-14s %s",
+		indicator,
+		StyleDim.Render(ts),
+		layerStr,
+		lStyle.Render(eventStr),
+		StyleValueCyan.Render(sessionStr),
+		detailStyle.Render(detailStr),
+	)
+
+	if isCursor {
+		return StyleCursorRow.Render(line)
+	}
+	return line
+}
+
+// isExpandable returns true if the event has 2+ data fields.
+func isExpandable(ev api.ForensicEvent) bool {
+	return len(ev.Data) >= 2
+}
+
+// detailValueStyle returns a color style based on the key name pattern.
+func detailValueStyle(key string) lipgloss.Style {
+	k := strings.ToLower(key)
+	switch {
+	case strings.Contains(k, "pass") || strings.Contains(k, "token") ||
+		strings.Contains(k, "key") || strings.Contains(k, "secret"):
+		return StyleDetailValRed
+	case strings.Contains(k, "ip") || strings.Contains(k, "host") ||
+		strings.Contains(k, "domain"):
+		return StyleValueCyan
+	case strings.Contains(k, "path") || strings.Contains(k, "url") ||
+		strings.Contains(k, "file"):
+		return StyleValueGreen
+	case strings.Contains(k, "status") || strings.Contains(k, "port") ||
+		strings.Contains(k, "depth") || strings.Contains(k, "count") ||
+		strings.Contains(k, "duration"):
+		return lipgloss.NewStyle().Foreground(ColorYellow)
+	default:
+		return StyleDim
+	}
+}
+
+// renderDetailLines returns the formatted detail lines for an expanded event.
+func renderDetailLines(ev api.ForensicEvent, width int) []string {
+	if len(ev.Data) == 0 {
+		return nil
+	}
+
+	// Sort keys for stable output
+	keys := make([]string, 0, len(ev.Data))
+	for k := range ev.Data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// Padding to align with the DETAILS column (indicator + timestamp + layer + event + session)
+	const pad = "                                                      "
+
+	var lines []string
+	for _, k := range keys {
+		v := fmt.Sprintf("%v", ev.Data[k])
+		maxVal := width - 56 - 14 - 4
+		if maxVal < 10 {
+			maxVal = 10
+		}
+		if len(v) > maxVal {
+			v = v[:maxVal-3] + "..."
+		}
+		keyStr := StyleDetailKey.Render(k)
+		valStr := detailValueStyle(k).Render(v)
+		lines = append(lines, fmt.Sprintf("%s│ %s %s", pad, keyStr, valStr))
+	}
+	return lines
 }
 
 func getLayerStyle(layer int) lipgloss.Style {

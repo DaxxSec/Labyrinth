@@ -53,8 +53,10 @@ type App struct {
 	sessionAnalysis *api.SessionAnalysis
 	prompts         []api.CapturedPrompt
 	logScrollOffset int
-	logFilterType   string // filter by event type on Logs tab
-	sessionView     int    // 0=list, 1=detail, 2=analysis
+	logFilterType   string       // filter by event type on Logs tab
+	logExpandedRows map[int]bool // filtered-event index → expanded
+	logCursorPos    int          // selected row in filtered list
+	sessionView     int          // 0=list, 1=detail, 2=analysis
 
 	// Previous counts for notification delta detection
 	prevSessionCount int
@@ -157,14 +159,15 @@ type containerLogsMsg struct {
 // focused on that environment.
 func NewApp(targetEnv ...string) *App {
 	a := &App{
-		activeTab:     TabOverview,
-		apiClient:     api.NewClient(dashboardURL),
-		fileReader:    forensics.NewReader(forensicsDir),
-		layerStatuses: defaultLayerStatuses(),
-		selectedEnv:   -1,
-		dashboardURLs: make(map[string]string),
-		l4Mode:        "passive",
-		containerLogs: make(map[string]*api.ContainerLogs),
+		activeTab:       TabOverview,
+		apiClient:       api.NewClient(dashboardURL),
+		fileReader:      forensics.NewReader(forensicsDir),
+		layerStatuses:   defaultLayerStatuses(),
+		selectedEnv:     -1,
+		dashboardURLs:   make(map[string]string),
+		l4Mode:          "passive",
+		containerLogs:   make(map[string]*api.ContainerLogs),
+		logExpandedRows: make(map[int]bool),
 	}
 	if len(targetEnv) > 0 && targetEnv[0] != "" {
 		a.targetEnvName = targetEnv[0]
@@ -247,10 +250,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.envSelectorOpen = !a.envSelectorOpen
 				return a, nil
 			}
-		case "enter":
+		case "enter", " ":
 			if a.activeTab == TabSessions && a.sessionView == 0 && len(a.sessions) > 0 {
 				a.sessionView = 1
 				return a, a.fetchSessionDetailCmd()
+			}
+			if a.activeTab == TabLogs {
+				a.toggleLogExpand()
+				return a, nil
 			}
 		case "a":
 			if a.activeTab == TabSessions && (a.sessionView == 1 || a.sessionView == 0) && len(a.sessions) > 0 {
@@ -258,6 +265,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.fetchSessionAnalysisCmd()
 			}
 		case "esc", "escape":
+			if a.activeTab == TabLogs {
+				a.collapseLogRows()
+				return a, nil
+			}
 			if a.activeTab == TabSessions && a.sessionView == 2 {
 				a.sessionView = 1
 				a.sessionAnalysis = nil
@@ -274,7 +285,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.selectedSession = min(a.selectedSession+1, len(a.sessions)-1)
 				}
 			case TabLogs:
-				a.logScrollOffset++
+				a.moveLogCursor(1)
 			case TabEnvironment:
 				a.envLogScroll++
 			}
@@ -285,9 +296,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.selectedSession--
 				}
 			case TabLogs:
-				if a.logScrollOffset > 0 {
-					a.logScrollOffset--
-				}
+				a.moveLogCursor(-1)
 			case TabEnvironment:
 				if a.envLogScroll > 0 {
 					a.envLogScroll--
@@ -302,6 +311,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "f":
 			if a.activeTab == TabLogs {
 				a.cycleLogFilter()
+				a.logExpandedRows = make(map[int]bool)
+				a.logCursorPos = 0
 			}
 		case "m":
 			// Cycle L4 mode
@@ -615,7 +626,7 @@ func (a *App) renderHelp() string {
 		if a.logFilterType != "" {
 			filterLabel = a.logFilterType
 		}
-		return StyleHelp.Render(fmt.Sprintf("%s  [j/k] scroll  [f] filter (%s)", base, filterLabel))
+		return StyleHelp.Render(fmt.Sprintf("%s  [j/k] select  [Enter] expand  [Esc] collapse  [f] filter (%s)", base, filterLabel))
 	case TabEnvironment:
 		svc := envLogServices[a.selectedLogSvc]
 		return StyleHelp.Render(fmt.Sprintf("%s  [j/k] scroll logs  [s] service (%s)", base, svc))
@@ -940,7 +951,7 @@ func fetchDashboardHealthCmd(client *api.Client) tea.Cmd {
 }
 
 // envLogServices is the list of services available for container log viewing.
-var envLogServices = []string{"honeypot-http", "honeypot-ssh", "orchestrator", "proxy", "dashboard"}
+var envLogServices = []string{"labyrinth-http", "labyrinth-ssh", "orchestrator", "proxy", "dashboard"}
 
 func fetchBaitIdentityCmd(client *api.Client) tea.Cmd {
 	return func() tea.Msg {
@@ -960,6 +971,70 @@ func fetchContainerLogsCmd(client *api.Client, service string) tea.Cmd {
 		logs, err := client.FetchContainerLogs(service, 50)
 		return containerLogsMsg{logs: logs, err: err}
 	}
+}
+
+// moveLogCursor moves the log cursor by delta and auto-scrolls the viewport.
+func (a *App) moveLogCursor(delta int) {
+	count := a.filteredLogCount()
+	if count == 0 {
+		return
+	}
+	a.logCursorPos += delta
+	if a.logCursorPos < 0 {
+		a.logCursorPos = 0
+	}
+	if a.logCursorPos >= count {
+		a.logCursorPos = count - 1
+	}
+}
+
+// toggleLogExpand toggles expansion of the current cursor row if it has 2+ data fields.
+func (a *App) toggleLogExpand() {
+	events := a.filteredLogEvents()
+	if a.logCursorPos < 0 || a.logCursorPos >= len(events) {
+		return
+	}
+	if len(events[a.logCursorPos].Data) < 2 {
+		return
+	}
+	a.logExpandedRows[a.logCursorPos] = !a.logExpandedRows[a.logCursorPos]
+}
+
+// collapseLogRows collapses the current row if expanded, otherwise collapses all.
+func (a *App) collapseLogRows() {
+	if a.logExpandedRows[a.logCursorPos] {
+		a.logExpandedRows[a.logCursorPos] = false
+	} else {
+		a.logExpandedRows = make(map[int]bool)
+	}
+}
+
+// filteredLogEvents returns the current filtered event list.
+func (a *App) filteredLogEvents() []api.ForensicEvent {
+	if a.logFilterType == "" {
+		return a.allEvents
+	}
+	var events []api.ForensicEvent
+	for _, ev := range a.allEvents {
+		if ev.Event == a.logFilterType {
+			events = append(events, ev)
+		}
+	}
+	return events
+}
+
+// filteredLogCount returns the count of filtered events.
+func (a *App) filteredLogCount() int {
+	if a.logFilterType == "" {
+		return len(a.allEvents)
+	}
+	count := 0
+	for _, ev := range a.allEvents {
+		if ev.Event == a.logFilterType {
+			count++
+		}
+	}
+	return count
 }
 
 func min(a, b int) int {

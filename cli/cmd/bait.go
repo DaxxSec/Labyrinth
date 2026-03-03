@@ -247,7 +247,7 @@ func runBaitDrop(cmd *cobra.Command, args []string) {
 
 	if !allValid {
 		warn("Some credentials failed validation. The SSH container may need rebuilding.")
-		fmt.Printf("  %sTry: docker compose build honeypot-ssh && docker compose up -d honeypot-ssh%s\n", dim, reset)
+		fmt.Printf("  %sTry: docker compose build labyrinth-ssh && docker compose up -d labyrinth-ssh%s\n", dim, reset)
 		fmt.Printf("  %sThen re-run: labyrinth bait drop%s\n\n", dim, reset)
 	}
 

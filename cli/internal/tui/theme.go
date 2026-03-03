@@ -88,4 +88,16 @@ var (
 	StyleHelp = lipgloss.NewStyle().
 			Foreground(ColorDim).
 			Padding(1, 0)
+
+	StyleCursorRow = lipgloss.NewStyle().
+			Background(lipgloss.Color("#1a1a2e"))
+
+	StyleDetailKey = lipgloss.NewStyle().
+			Foreground(ColorSubtle).
+			Bold(true).
+			Width(14)
+
+	StyleDetailValRed = lipgloss.NewStyle().
+				Foreground(ColorRed).
+				Bold(true)
 )
