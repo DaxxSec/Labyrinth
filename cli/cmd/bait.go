@@ -23,6 +23,14 @@ type BaitManifest struct {
 	Users      []BaitUser `json:"users"`
 	WebPaths   []string   `json:"web_paths"`
 	SSHBaitKey string     `json:"ssh_bait_key"`
+	DBPass     string     `json:"db_pass"`
+	RedisToken string     `json:"redis_token"`
+	AWSKeyID   string     `json:"aws_key_id"`
+	AWSSecret  string     `json:"aws_secret"`
+	JWTSecret  string     `json:"jwt_secret"`
+	APIKey     string     `json:"api_key"`
+	StripeKey  string     `json:"stripe_key"`
+	DeployKey  string     `json:"deploy_key"`
 }
 
 type BaitUser struct {
@@ -168,12 +176,30 @@ func runBaitDrop(cmd *cobra.Command, args []string) {
 	// Generate bait key for SSH-side escalation file
 	sshBaitKey := randomHex(16)
 
+	// Generate all phantom-service credentials once (authoritative source)
+	dbPass := randomPassword()
+	redisToken := randomHex(8)
+	awsKeyID := "AKIA" + strings.ToUpper(randomHex(8))
+	awsSecret := randomBase64(30)
+	jwtSecret := randomHex(16)
+	apiKey := "sk-" + randomHex(16)
+	stripeKey := "sk_live_" + randomHex(16)
+	deployKey := "sk-deploy-" + randomHex(12)
+
 	manifest := BaitManifest{
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Company:    fullCompany,
 		Domain:     domain,
 		Users:      users,
 		SSHBaitKey: sshBaitKey,
+		DBPass:     dbPass,
+		RedisToken: redisToken,
+		AWSKeyID:   awsKeyID,
+		AWSSecret:  awsSecret,
+		JWTSecret:  jwtSecret,
+		APIKey:     apiKey,
+		StripeKey:  stripeKey,
+		DeployKey:  deployKey,
 	}
 
 	bold := "\033[1m"
@@ -271,11 +297,22 @@ func cleanBait(manifest *BaitManifest) {
 		warn("labyrinth-ssh not running — skipping SSH cleanup")
 	}
 
-	// Remove web bait files
+	// Remove web bait files and identity config
 	if containerRunning("labyrinth-http") {
 		removeWebBait()
+		removeIdentityConfig()
+
+		// Restart HTTP so it regenerates a fresh identity
+		info("Restarting HTTP portal trap...")
+		exec.Command("docker", "restart", "labyrinth-http").Run()
 	} else {
 		warn("labyrinth-http not running — skipping HTTP cleanup")
+	}
+
+	// Restart proxy so it picks up the fresh identity
+	if containerRunning("labyrinth-proxy") {
+		info("Restarting proxy...")
+		exec.Command("docker", "restart", "labyrinth-proxy").Run()
 	}
 
 	// Delete manifest
@@ -445,6 +482,72 @@ func restoreSSHBait() {
 	info("Restored default SSH bait file")
 }
 
+// ── Identity Config (shared volume) ─────────────────────────
+
+// writeIdentityConfig writes config.json to the HTTP container's shared volume
+// so that both http_honeypot.py and services.py use the same credentials.
+// Must be called BEFORE restarting the HTTP container.
+func writeIdentityConfig(manifest BaitManifest) {
+	// Build user list matching http_honeypot.py format
+	type idUser struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+		Uname string `json:"uname"`
+	}
+	users := make([]idUser, len(manifest.Users))
+	for i, u := range manifest.Users {
+		role := "admin"
+		if i == 1 {
+			role = "deployer"
+		} else if i > 1 {
+			role = "viewer"
+		}
+		users[i] = idUser{
+			Email: u.Username + "@" + manifest.Domain,
+			Role:  role,
+			Uname: u.Username,
+		}
+	}
+
+	cfg := map[string]any{
+		"company":     manifest.Company,
+		"domain":      manifest.Domain,
+		"users":       users,
+		"db_pass":     manifest.DBPass,
+		"redis_token": manifest.RedisToken,
+		"aws_key_id":  manifest.AWSKeyID,
+		"aws_secret":  manifest.AWSSecret,
+		"jwt_secret":  manifest.JWTSecret,
+		"api_key":     manifest.APIKey,
+		"stripe_key":  manifest.StripeKey,
+		"deploy_key":  manifest.DeployKey,
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		warn(fmt.Sprintf("Could not marshal identity config: %v", err))
+		return
+	}
+
+	// Write to the HTTP container's audit log directory (shared volume)
+	writeCmd := exec.Command("docker", "exec", "-i", "labyrinth-http",
+		"bash", "-c", "cat > /var/log/audit/config.json")
+	writeCmd.Stdin = strings.NewReader(string(data))
+	if out, err := writeCmd.CombinedOutput(); err != nil {
+		warn(fmt.Sprintf("Could not write identity config: %s", strings.TrimSpace(string(out))))
+		return
+	}
+
+	info("Wrote identity config.json to shared volume")
+}
+
+// removeIdentityConfig deletes config.json so containers regenerate fresh on next boot.
+func removeIdentityConfig() {
+	exec.Command("docker", "exec", "labyrinth-http",
+		"rm", "-f", "/var/log/audit/config.json").Run()
+	info("Removed identity config.json")
+}
+
 // ── Web Bait Generation ─────────────────────────────────────
 
 func plantWebBait(manifest BaitManifest) []string {
@@ -470,11 +573,11 @@ func plantWebBait(manifest BaitManifest) []string {
 
 	dbName := pick(dbNames)
 	serviceName := pick(serviceNames)
-	awsKeyID := "AKIA" + strings.ToUpper(randomHex(8))
-	awsSecret := randomBase64(30)
-	jwtSecret := randomHex(32)
-	apiKey := "sk-" + randomHex(24)
-	stripeKey := "sk_live_" + randomHex(24)
+	awsKeyID := manifest.AWSKeyID
+	awsSecret := manifest.AWSSecret
+	jwtSecret := manifest.JWTSecret
+	apiKey := manifest.APIKey
+	stripeKey := manifest.StripeKey
 
 	// 1) robots.txt — hints at sensitive paths
 	robotsTxt := fmt.Sprintf(
@@ -518,8 +621,8 @@ func plantWebBait(manifest BaitManifest) []string {
 			"SSH_PASS=%s\n",
 		manifest.Company, serviceName,
 		serviceName, randomHex(16),
-		u1.Username, u1.Password, manifest.Domain, dbName,
-		randomHex(12), manifest.Domain,
+		u1.Username, manifest.DBPass, manifest.Domain, dbName,
+		manifest.RedisToken, manifest.Domain,
 		awsKeyID, awsSecret,
 		jwtSecret,
 		apiKey,
@@ -540,8 +643,8 @@ func plantWebBait(manifest BaitManifest) []string {
 			"jenkins,jenkins.%s,8080,admin,%s,CI/CD server\n",
 		sshTarget, sshPort, u1.Username, u1.Password,
 		sshTarget, sshPort, u2.Username, u2.Password,
-		manifest.Domain, u1.Username, randomPassword(),
-		manifest.Domain, randomHex(12),
+		manifest.Domain, u1.Username, manifest.DBPass,
+		manifest.Domain, manifest.RedisToken,
 		manifest.Domain, randomPassword(),
 	)
 	planted = append(planted, writeBaitFile(tmpDir, "backup/credentials.csv", credCSV)...)
@@ -638,13 +741,12 @@ func plantWebBait(manifest BaitManifest) []string {
 	)
 	planted = append(planted, writeBaitFile(tmpDir, "admin/notes.txt", adminNotes)...)
 
-	// Copy all bait files into the HTTP container
-	// First ensure the bait directory exists
+	// Copy all bait files into the HTTP container's static dir
+	// (http_honeypot.py serves from STATIC_DIR = /var/log/audit/static)
 	exec.Command("docker", "exec", "labyrinth-http",
-		"mkdir", "-p", "/var/labyrinth/bait/web").Run()
+		"mkdir", "-p", "/var/log/audit/static").Run()
 
-	// docker cp the temp dir contents into the container
-	copyCmd := exec.Command("docker", "cp", tmpDir+"/.", "labyrinth-http:/var/labyrinth/bait/web/")
+	copyCmd := exec.Command("docker", "cp", tmpDir+"/.", "labyrinth-http:/var/log/audit/static/")
 	if out, err := copyCmd.CombinedOutput(); err != nil {
 		errMsg(fmt.Sprintf("Failed to copy bait files: %s", strings.TrimSpace(string(out))))
 		return planted
@@ -652,11 +754,22 @@ func plantWebBait(manifest BaitManifest) []string {
 
 	info(fmt.Sprintf("Planted %d web bait files", len(planted)))
 
-	// Restart the HTTP container so the server process picks up new bait files
-	// and regenerates its anti-fingerprinting identity
+	// Write authoritative config.json BEFORE restarting HTTP so it
+	// loads our credentials instead of generating its own
+	writeIdentityConfig(manifest)
+
+	// Restart HTTP so it picks up the new config.json and static files
 	info("Restarting HTTP portal trap...")
 	if err := exec.Command("docker", "restart", "labyrinth-http").Run(); err != nil {
 		warn(fmt.Sprintf("Could not restart labyrinth-http: %v", err))
+	}
+
+	// Restart proxy so it reloads config.json with the new identity
+	if containerRunning("labyrinth-proxy") {
+		info("Restarting proxy (credential sync)...")
+		if err := exec.Command("docker", "restart", "labyrinth-proxy").Run(); err != nil {
+			warn(fmt.Sprintf("Could not restart labyrinth-proxy: %v", err))
+		}
 	}
 
 	return planted
@@ -670,8 +783,9 @@ func writeBaitFile(tmpDir, relPath, content string) []string {
 }
 
 func removeWebBait() {
+	// Remove from the HTTP honeypot's STATIC_DIR where bait files are served
 	exec.Command("docker", "exec", "labyrinth-http",
-		"rm", "-rf", "/var/labyrinth/bait/web").Run()
+		"rm", "-rf", "/var/log/audit/static").Run()
 	info("Removed web bait files")
 }
 

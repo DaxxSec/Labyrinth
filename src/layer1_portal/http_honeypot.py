@@ -74,17 +74,31 @@ def _generate_identity():
     }
 
 
-# Generated once at import time (container startup)
-_ID = _generate_identity()
-
-# Write identity to shared volume for SSH user provisioning
+# Load or generate identity at container startup.
+# If config.json already exists (e.g. written by `labyrinth bait drop`),
+# use it so all services share the same credentials.
 _IDENTITY_FILE = "/var/log/audit/config.json"
-try:
-    os.makedirs(os.path.dirname(_IDENTITY_FILE), exist_ok=True)
-    with open(_IDENTITY_FILE, "w") as _f:
-        json.dump(_ID, _f, indent=2)
-except OSError:
-    pass  # Non-fatal if volume not mounted
+
+if os.path.exists(_IDENTITY_FILE):
+    try:
+        with open(_IDENTITY_FILE) as _f:
+            _ID = json.load(_f)
+    except (json.JSONDecodeError, IOError):
+        _ID = _generate_identity()
+        try:
+            os.makedirs(os.path.dirname(_IDENTITY_FILE), exist_ok=True)
+            with open(_IDENTITY_FILE, "w") as _f:
+                json.dump(_ID, _f, indent=2)
+        except OSError:
+            pass
+else:
+    _ID = _generate_identity()
+    try:
+        os.makedirs(os.path.dirname(_IDENTITY_FILE), exist_ok=True)
+        with open(_IDENTITY_FILE, "w") as _f:
+            json.dump(_ID, _f, indent=2)
+    except OSError:
+        pass  # Non-fatal if volume not mounted
 
 # ── Content generation (derived from _ID) ──
 
