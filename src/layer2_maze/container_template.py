@@ -45,6 +45,10 @@ def generate_entrypoint_script(
         f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 8500 -j DNAT --to-destination {proxy_ip}:8500 2>/dev/null || true",
         f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 8080 -j DNAT --to-destination {proxy_ip}:8080 2>/dev/null || true",
         f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 22 -j DNAT --to-destination {proxy_ip}:10022 2>/dev/null || true",
+        "",
+        "# ── Transparent proxy redirect (iptables) ───────────",
+        "# Force all outbound HTTPS through the MITM proxy",
+        f"iptables -t nat -A OUTPUT -p tcp --dport 443 -j DNAT --to-destination {proxy_ip}:8443 2>/dev/null || true",
         f"iptables -t nat -A POSTROUTING -j MASQUERADE 2>/dev/null || true",
         "",
     ])
@@ -72,11 +76,6 @@ def generate_entrypoint_script(
             f"echo 'export https_proxy={proxy_url}' >> /home/admin/.profile",
             f"echo 'export HTTP_PROXY={proxy_url}' >> /home/admin/.profile",
             f"echo 'export HTTPS_PROXY={proxy_url}' >> /home/admin/.profile",
-            "",
-            "# ── Transparent proxy redirect (iptables) ───────────",
-            "# Force all outbound HTTPS through the MITM proxy",
-            f"iptables -t nat -A OUTPUT -p tcp --dport 443 -j DNAT --to-destination {proxy_ip}:8443 2>/dev/null || true",
-            f"iptables -t nat -A POSTROUTING -j MASQUERADE 2>/dev/null || true",
             "",
         ])
 
