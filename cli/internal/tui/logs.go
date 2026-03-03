@@ -186,6 +186,25 @@ func formatEventData(eventType string, data map[string]interface{}) string {
 			s += " contradictions=" + density
 		}
 		return s
+	case "service_connection":
+		return fmt.Sprintf("%s %s:%s", str(data, "protocol"), str(data, "client_ip"), str(data, "port"))
+	case "service_auth":
+		s := str(data, "protocol")
+		if user := str(data, "username"); user != "" {
+			s += " user=" + user
+		}
+		if token := str(data, "token"); token != "" {
+			s += " token=" + token
+		}
+		return s
+	case "service_query":
+		s := str(data, "protocol")
+		if q := str(data, "query"); q != "" {
+			s += " " + q
+		} else if cmd := str(data, "command"); cmd != "" {
+			s += " " + cmd
+		}
+		return s
 	case "escalation_detected", "escalation":
 		s := str(data, "type")
 		if file := str(data, "file"); file != "" {

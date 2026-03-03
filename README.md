@@ -104,6 +104,7 @@ labyrinth bait clean                    # Remove bait when done
 Agent connects to portal trap service
  └─→ Container spawned (Layer 1 — THRESHOLD)
      └─→ Agent explores contradictory environment (Layer 2 — MINOTAUR)
+         ├─→ Agent uses stolen credentials → phantom services accept & log (Layer 4)
          └─→ Terminal encoding corrupted (Layer 3 — BLINDFOLD)
              └─→ System prompt intercepted & rewritten (Layer 4 — PUPPETEER)
 
@@ -122,7 +123,7 @@ LABYRINTH implements a **reverse kill chain** — the deeper an agent penetrates
 | L1 | `THRESHOLD` | CONTAIN | Portal trap routes connections into isolated containers |
 | L2 | `MINOTAUR` | DEGRADE | Contradictory environments erode the agent's world model |
 | L3 | `BLINDFOLD` | DISRUPT | Encoding corruption blinds the agent's I/O parsing |
-| L4 | `PUPPETEER` | CONTROL | MITM intercept captures and rewrites the agent's instructions |
+| L4 | `PUPPETEER` | CONTROL | Phantom services accept stolen credentials; MITM intercepts and rewrites agent instructions |
 
 > **Depth of penetration = Depth of compromise**
 
@@ -160,7 +161,8 @@ See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
 - [x] Layer 1 container orchestration (PAM hooks, bait watchers, HTTP portal trap)
 - [x] Layer 2 contradiction seeding engine (13 contradictions, adaptive density)
 - [x] Layer 3 encoding corruption payloads (enhanced: urandom, TERM, recovery traps)
-- [x] Layer 4 MITM proxy interception (5 AI APIs, 3 swap modes)
+- [x] Layer 4 MITM proxy interception (5 AI APIs, 4 operational modes)
+- [x] Layer 4 phantom services (PostgreSQL, Redis, ES, Consul, Jenkins — credential capture)
 - [x] Orchestrator event loop (watchdog, Docker SDK, session lifecycle)
 - [x] End-to-end smoke test (full kill chain verification)
 - [x] Auto CA cert injection on container spawn

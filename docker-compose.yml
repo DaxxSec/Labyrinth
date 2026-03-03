@@ -75,6 +75,14 @@ services:
     networks:
       labyrinth-net:
         ipv4_address: 172.30.0.50
+    expose:
+      - "8443"
+      - "5432"
+      - "6379"
+      - "9200"
+      - "8500"
+      - "8080"
+      - "10022"
     volumes:
       - forensic-data:/var/labyrinth/forensics
     environment:

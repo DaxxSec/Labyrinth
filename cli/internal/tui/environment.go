@@ -8,20 +8,19 @@ import (
 )
 
 func renderEnvironment(a *App, height int) string {
-	leftWidth := a.width*3/5 - 1
+	// Identity panel (1/3) on the left, logs (2/3) on the right
+	leftWidth := a.width/3 - 1
 	rightWidth := a.width - leftWidth - 3
-	if leftWidth < 40 {
-		leftWidth = 40
+	if leftWidth < 30 {
+		leftWidth = 30
 	}
-	if rightWidth < 20 {
-		rightWidth = 20
+	if rightWidth < 40 {
+		rightWidth = 40
 	}
 
 	left := renderBaitIdentity(a, leftWidth, height)
 	right := renderContainerLogsPanel(a, rightWidth, height)
 
-	// Use lipgloss.PlaceHorizontal to pad each panel to its fixed width,
-	// then join — this avoids ANSI-aware width issues.
 	leftBlock := lipgloss.NewStyle().Width(leftWidth).Render(left)
 	rightBlock := lipgloss.NewStyle().Width(rightWidth).Render(right)
 

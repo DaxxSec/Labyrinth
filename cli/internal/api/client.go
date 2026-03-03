@@ -182,6 +182,15 @@ func (c *Client) FetchContainerLogs(service string, lines int) (*ContainerLogs, 
 	return &logs, nil
 }
 
+// FetchL4Services retrieves phantom service status from /api/l4/services.
+func (c *Client) FetchL4Services() (*L4ServicesResponse, error) {
+	var resp L4ServicesResponse
+	if err := c.getJSON("/api/l4/services", &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // FetchL4Intel retrieves captured intelligence from /api/l4/intel.
 func (c *Client) FetchL4Intel() ([]L4IntelSummary, error) {
 	var resp L4IntelResponse

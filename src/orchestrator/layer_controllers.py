@@ -129,6 +129,19 @@ class PuppeteerController:
         "api.cohere.ai",
     ]
 
+    # Internal service domains for network service handler
+    SERVICE_DOMAINS = [
+        "rds-prod.internal",
+        "db-master.internal",
+        "redis.internal",
+        "redis-prod.internal",
+        "es.internal",
+        "elasticsearch.internal",
+        "consul.internal",
+        "jenkins.internal",
+        "k8s-prod.internal",
+    ]
+
     def __init__(self, config: Layer4Config):
         self.config = config
         self._session_map_path = "/var/labyrinth/forensics/proxy_map.json"
@@ -137,6 +150,11 @@ class PuppeteerController:
         """Return DNS override mapping: AI API domains → proxy IP."""
         proxy_ip = self.config.proxy_ip
         return {domain: proxy_ip for domain in self.TARGET_DOMAINS}
+
+    def get_service_dns_overrides(self) -> dict:
+        """Return DNS override mapping: internal service domains → proxy IP."""
+        proxy_ip = self.config.proxy_ip
+        return {domain: proxy_ip for domain in self.SERVICE_DOMAINS}
 
     def activate(self, docker_client, session):
         """Activate L4 proxy routing on a running container via docker exec.

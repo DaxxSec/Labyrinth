@@ -34,12 +34,21 @@
   .event-log::-webkit-scrollbar { width: 6px; }
   .event-log::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 3px; }
   .event-row { padding: 6px 16px; border-bottom: 1px solid #0a0a0f; font-size: 11px; display: flex; gap: 12px; align-items: baseline; }
-  .event-row:last-child { border-bottom: none; }
+  .event-row:last-child, .event-detail:last-child { border-bottom: none; }
   .event-row .ts { color: #484f58; min-width: 70px; }
   .event-row .layer-badge { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; min-width: 24px; text-align: center; }
   .event-row .ev-type { color: #c9d1d9; min-width: 140px; }
   .event-row .session { color: #00ccff; min-width: 120px; }
   .event-row .details { color: #484f58; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event-row.expandable { cursor: pointer; }
+  .event-row.expandable:hover { background: #1a1a2e30; }
+  .event-row .expand-icon { color: #484f58; font-size: 9px; margin-right: 4px; transition: transform 0.15s; display: inline-block; width: 10px; }
+  .event-row.expanded .expand-icon { transform: rotate(90deg); }
+  .event-detail { display: none; padding: 2px 16px 6px 54px; border-bottom: 1px solid #0a0a0f; font-size: 11px; background: #0a0a0f; }
+  .event-detail.open { display: block; }
+  .event-detail .detail-field { padding: 1px 0; display: flex; gap: 8px; }
+  .event-detail .detail-key { color: #8b949e; min-width: 100px; }
+  .event-detail .detail-val { color: #c9d1d9; word-break: break-all; }
 
   /* Layer colors */
   .layer-0 { background: #00ff8830; color: #00ff88; }
@@ -115,10 +124,14 @@
   .breakdown-row .bd-name { min-width: 160px; color: #8b949e; }
   .breakdown-row .bd-bar { height: 10px; background: #00ccff40; border-radius: 3px; min-width: 2px; }
   .breakdown-row .bd-count { color: #484f58; min-width: 40px; }
-  .timeline-row { padding: 4px 0; font-size: 11px; display: flex; gap: 10px; }
+  .timeline-row { padding: 4px 0; font-size: 11px; display: flex; gap: 10px; align-items: baseline; }
   .timeline-row .tl-ts { color: #484f58; min-width: 70px; }
   .timeline-row .tl-ev { min-width: 160px; }
-  .timeline-row .tl-detail { color: #484f58; }
+  .timeline-row .tl-detail { color: #484f58; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timeline-row.expandable { cursor: pointer; border-radius: 3px; padding: 4px 4px; }
+  .timeline-row.expandable:hover { background: #1a1a2e30; }
+  .timeline-row .expand-icon { color: #484f58; font-size: 9px; margin-right: 4px; transition: transform 0.15s; display: inline-block; width: 10px; }
+  .timeline-row.expanded .expand-icon { transform: rotate(90deg); }
 
   .empty { padding: 40px; text-align: center; color: #484f58; }
   .empty .icon { font-size: 28px; margin-bottom: 8px; }
@@ -327,12 +340,48 @@
           return escHtml('container=' + (data.container_name||''));
         case 'depth_increase':
           return escHtml('depth ' + (data.old_depth||'') + ' \u2192 ' + (data.new_depth||''));
+        case 'service_connection':
+          return escHtml((data.protocol||'') + ' ' + (data.client_ip||'') + ':' + (data.port||''));
+        case 'service_auth':
+          var s = data.protocol||'';
+          if (data.username) s += ' user=' + data.username;
+          if (data.token) s += ' token=' + data.token;
+          return escHtml(s);
+        case 'service_query':
+          var sq = data.protocol||'';
+          if (data.query) sq += ' ' + data.query;
+          else if (data.command) sq += ' ' + data.command;
+          return escHtml(sq);
         default:
           return Object.entries(data).map(([k, v]) => {
             let s = String(v);
             if (s.length > 40) s = s.slice(0, 37) + '...';
             return escHtml(k) + '=' + escHtml(s);
           }).join(' ');
+      }
+    }
+
+    function isExpandable(data) {
+      if (!data || typeof data !== 'object') return false;
+      var keys = Object.keys(data);
+      return keys.length >= 2;
+    }
+
+    function renderDetailFields(data) {
+      if (!data || typeof data !== 'object') return '';
+      return Object.entries(data).map(function(e) {
+        var val = typeof e[1] === 'object' ? JSON.stringify(e[1]) : String(e[1]);
+        return '<div class="detail-field"><span class="detail-key">' + escHtml(e[0]) + '</span><span class="detail-val">' + escHtml(val) + '</span></div>';
+      }).join('');
+    }
+
+    function toggleEventDetail(el) {
+      var row = el.closest('.event-row') || el.closest('.timeline-row');
+      if (!row) return;
+      var detail = row.nextElementSibling;
+      if (detail && detail.classList.contains('event-detail')) {
+        row.classList.toggle('expanded');
+        detail.classList.toggle('open');
       }
     }
 
@@ -371,13 +420,19 @@
             const layer = ev.layer || 0;
             const sid = ev.session_id ? escHtml(ev.session_id).slice(0, 16) : '-';
             const details = formatData(ev.data, ev.event);
-            return '<div class="event-row">' +
+            const canExpand = isExpandable(ev.data);
+            let html = '<div class="event-row' + (canExpand ? ' expandable' : '') + '"' + (canExpand ? ' onclick="toggleEventDetail(this)"' : '') + '>' +
+              (canExpand ? '<span class="expand-icon">&#9654;</span>' : '') +
               '<span class="ts">' + escHtml(ts) + '</span>' +
               '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
               '<span class="ev-type">' + escHtml(ev.event || '') + '</span>' +
               '<span class="session">' + sid + '</span>' +
               '<span class="details">' + details + '</span>' +
               '</div>';
+            if (canExpand) {
+              html += '<div class="event-detail">' + renderDetailFields(ev.data) + '</div>';
+            }
+            return html;
           }).join('');
           if (wasScrolled) logEl.scrollTop = logEl.scrollHeight;
         }
@@ -483,12 +538,18 @@
             const ts = (ev.timestamp || '').slice(11, 19);
             const layer = ev.layer || 0;
             const details = formatData(ev.data, ev.event);
-            return '<div class="timeline-row">' +
+            const canExpand = isExpandable(ev.data);
+            let row = '<div class="timeline-row' + (canExpand ? ' expandable' : '') + '"' + (canExpand ? ' onclick="toggleEventDetail(this)"' : '') + '>' +
+              (canExpand ? '<span class="expand-icon">&#9654;</span>' : '') +
               '<span class="tl-ts">' + escHtml(ts) + '</span>' +
               '<span class="layer-badge ' + layerClass(layer) + '">L' + layer + '</span>' +
               '<span class="tl-ev" style="color:' + (['#00ff88','#00ccff','#cc33ff','#ff3366','#ffaa00'][Math.min(layer,4)]) + '">' + escHtml(ev.event || '') + '</span>' +
               '<span class="tl-detail">' + details + '</span>' +
               '</div>';
+            if (canExpand) {
+              row += '<div class="event-detail">' + renderDetailFields(ev.data) + '</div>';
+            }
+            return row;
           }).join('');
         }
 
@@ -566,7 +627,7 @@
         if (data.phases && data.phases.length > 0) {
           html += '<div style="margin-bottom:16px">';
           html += '<div style="color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold">Behavioral Phases</div>';
-          const phaseLabels = {reconnaissance:'Reconnaissance',credential_discovery:'Credential Discovery',initial_access:'Initial Access',escalation:'Escalation',confusion:'Confusion',blindfold:'Blindfold',interception:'Interception'};
+          const phaseLabels = {reconnaissance:'Reconnaissance',credential_discovery:'Credential Discovery',initial_access:'Initial Access',lateral_movement:'Lateral Movement',escalation:'Escalation',confusion:'Confusion',blindfold:'Blindfold',interception:'Interception'};
           data.phases.forEach(function(p) {
             const label = phaseLabels[p.phase] || p.phase;
             const st = (p.start||'').slice(11,19);

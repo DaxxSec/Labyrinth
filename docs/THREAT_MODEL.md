@@ -16,6 +16,7 @@ This document models the threat landscape of autonomous offensive AI agents and 
 | Instruction Integrity | Agent trusts its system prompt has not been tampered with | L4 PUPPETEER |
 | API Communication | Agent must reach its model backend to reason | L4 PUPPETEER |
 | Infrastructure Trust | Agent assumes the host it's on is a real system | L1 THRESHOLD |
+| Infrastructure Connectivity | Agent assumes network services (databases, caches) are genuine | L4 PUPPETEER |
 
 ## Agent Evasion Capabilities (Known)
 

@@ -38,6 +38,15 @@ def generate_entrypoint_script(
         "    /opt/.svc/file_monitor.sh &",
         "fi",
         "",
+        "# ── Route internal network to service handler ───────",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 5432 -j DNAT --to-destination {proxy_ip}:5432 2>/dev/null || true",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 6379 -j DNAT --to-destination {proxy_ip}:6379 2>/dev/null || true",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 9200 -j DNAT --to-destination {proxy_ip}:9200 2>/dev/null || true",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 8500 -j DNAT --to-destination {proxy_ip}:8500 2>/dev/null || true",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 8080 -j DNAT --to-destination {proxy_ip}:8080 2>/dev/null || true",
+        f"iptables -t nat -A OUTPUT -p tcp -d 10.0.0.0/8 --dport 22 -j DNAT --to-destination {proxy_ip}:10022 2>/dev/null || true",
+        f"iptables -t nat -A POSTROUTING -j MASQUERADE 2>/dev/null || true",
+        "",
     ])
 
     if l3_active:

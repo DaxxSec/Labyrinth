@@ -171,6 +171,20 @@ type L4IntelResponse struct {
 	Intel []L4IntelSummary `json:"intel"`
 }
 
+// L4ServicePort describes a phantom service port.
+type L4ServicePort struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	Name     string `json:"name"`
+}
+
+// L4ServicesResponse holds phantom service status and event counts.
+type L4ServicesResponse struct {
+	Services          []L4ServicePort    `json:"services"`
+	EventCounts       map[string]int     `json:"event_counts"`
+	ProtocolBreakdown map[string]int     `json:"protocol_breakdown"`
+}
+
 // BaitUser represents a planted bait user identity.
 type BaitUser struct {
 	Email string `json:"email"`

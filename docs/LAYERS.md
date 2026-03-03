@@ -62,15 +62,15 @@ Terminal encoding corruption via shell profile payloads. Recovery commands are t
 | Method | bashrc_payload |
 | Traps | reset, stty sane aliased to re-trigger |
 
-### L4 — PUPPETEER (Prompt Interception)
+### L4 — PUPPETEER (Network + Cognitive Intelligence)
 **Action: CONTROL**
 
-MITM interception of agent-to-model API calls. System prompt captured and swapped. Three modes: passive observation, intelligence extraction, double-agent conversion.
+Dual-capability layer. Network Intelligence: protocol-compatible phantom services (PostgreSQL, Redis, Elasticsearch, Consul, Jenkins) on the proxy container accept stolen credentials and log all lateral movement. Cognitive Intelligence: MITM interception of AI API calls captures system prompts, tool inventories, and API keys. Four modes: passive, neutralize, double-agent, counter-intel.
 
 | Component | Detail |
 |-----------|--------|
-| Mode | Auto / Manual (Burp-style intercept) |
-| Default swap | Passive / Extract / Double-agent |
+| Phantom services | PostgreSQL, Redis, ES, Consul, Jenkins, SSH |
+| API interception | 5 AI providers, 4 operational modes |
 | Prompt logging | Original prompts captured to forensics |
 
 ## Configuration

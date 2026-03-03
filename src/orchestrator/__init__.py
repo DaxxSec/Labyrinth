@@ -306,6 +306,7 @@ class LabyrinthOrchestrator:
 
         # L4: Get DNS overrides for proxy interception
         dns_overrides = self.l4.get_dns_overrides()
+        service_overrides = self.l4.get_service_dns_overrides()
         session.l4_active = True
 
         # L1: Spawn session container
@@ -315,6 +316,7 @@ class LabyrinthOrchestrator:
                 contradiction_config=contradiction_config,
                 l3_active=l3_active,
                 l4_dns_overrides=dns_overrides,
+                service_dns_overrides=service_overrides,
             )
             session.container_id = container_id
             session.container_ip = container_ip
@@ -386,12 +388,14 @@ class LabyrinthOrchestrator:
         if self.docker_client:
             old_container_id = session.container_id
             dns_overrides = self.l4.get_dns_overrides()
+            service_overrides = self.l4.get_service_dns_overrides()
 
             container_id, container_ip = self.container_mgr.spawn_session_container(
                 session=session,
                 contradiction_config=next_config,
                 l3_active=session.l3_active,
                 l4_dns_overrides=dns_overrides,
+                service_dns_overrides=service_overrides,
             )
 
             # Cleanup old container BEFORE spawning new one to avoid name conflicts

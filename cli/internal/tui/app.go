@@ -73,6 +73,7 @@ type App struct {
 	// L4 mode control
 	l4Mode           string            // current L4 mode (passive/neutralize/double_agent/counter_intel)
 	l4Intel          []api.L4IntelSummary // captured intelligence summaries
+	l4Services       *api.L4ServicesResponse // phantom service status
 
 	// Dashboard health
 	dashboardHealth  *api.DashboardHealth            // last health check result
@@ -134,6 +135,10 @@ type l4IntelMsg struct {
 }
 type l4ModeSetMsg struct {
 	err error
+}
+type l4ServicesMsg struct {
+	services *api.L4ServicesResponse
+	err      error
 }
 type dashboardHealthMsg struct {
 	health *api.DashboardHealth
@@ -412,6 +417,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.l4Intel = msg.intel
 		}
 
+	case l4ServicesMsg:
+		if msg.err == nil {
+			a.l4Services = msg.services
+		}
+
 	case l4ModeSetMsg:
 		if msg.err == nil {
 			// Refresh mode after set
@@ -623,6 +633,8 @@ func (a *App) tabFetchCmd() tea.Cmd {
 	cmds = append(cmds, fetchLayersCmd(a.apiClient, a.fileReader))
 
 	switch a.activeTab {
+	case TabOverview:
+		cmds = append(cmds, fetchL4ServicesCmd(a.apiClient))
 	case TabLogs:
 		cmds = append(cmds, fetchEventsCmd(a.apiClient, a.fileReader))
 	case TabSessions:
@@ -907,6 +919,16 @@ func fetchL4IntelCmd(client *api.Client) tea.Cmd {
 		}
 		intel, err := client.FetchL4Intel()
 		return l4IntelMsg{intel: intel, err: err}
+	}
+}
+
+func fetchL4ServicesCmd(client *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		if !client.Healthy() {
+			return l4ServicesMsg{err: fmt.Errorf("not connected")}
+		}
+		svc, err := client.FetchL4Services()
+		return l4ServicesMsg{services: svc, err: err}
 	}
 }
 

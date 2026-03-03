@@ -84,6 +84,8 @@ def stats():
     http_requests = 0
     l3_activations = 0
     l4_interceptions = 0
+    service_connections = 0
+    service_auths = 0
     max_depth_reached = 0
 
     for f in session_files:
@@ -97,6 +99,10 @@ def stats():
                 l3_activations += 1
             elif event_type == "api_intercepted":
                 l4_interceptions += 1
+            elif event_type == "service_connection":
+                service_connections += 1
+            elif event_type == "service_auth":
+                service_auths += 1
             data = ev.get("data", {})
             depth = data.get("depth", 0) if isinstance(data, dict) else 0
             if isinstance(depth, (int, float)) and depth > max_depth_reached:
@@ -135,6 +141,8 @@ def stats():
         "http_requests": http_requests,
         "l3_activations": l3_activations,
         "l4_interceptions": l4_interceptions,
+        "service_connections": service_connections,
+        "service_auths": service_auths,
         "max_depth_reached": max_depth_reached,
         "active_containers": active_containers,
     })
@@ -289,7 +297,7 @@ def session_analysis(session_id):
         "event_breakdown": _count_event_types(events),
         "key_moments": _extract_key_moments(events),
         "l3_activated": any(ev.get("event") == "encoding_activated" for ev in events),
-        "l4_active": any(ev.get("event") == "api_intercepted" for ev in events),
+        "l4_active": any(ev.get("event") in ("api_intercepted", "service_connection") for ev in events),
     }
     return jsonify(analysis)
 
@@ -363,6 +371,10 @@ def _compute_confusion_score(events):
     if any(ev.get("event") == "api_intercepted" for ev in events):
         score += 10
 
+    # Service credential use (strong lateral movement signal)
+    if any(ev.get("event") == "service_auth" for ev in events):
+        score += 15
+
     return min(score, 100)
 
 
@@ -376,6 +388,7 @@ def _extract_phases(events):
         "credential_discovery": [],
         "initial_access": [],
         "escalation": [],
+        "lateral_movement": [],
         "confusion": [],
         "blindfold": [],
         "interception": [],
@@ -393,6 +406,8 @@ def _extract_phases(events):
             phase_events["initial_access"].append(ts)
         elif event_type in ("depth_increase", "command"):
             phase_events["escalation"].append(ts)
+        elif event_type in ("service_connection", "service_auth", "service_query"):
+            phase_events["lateral_movement"].append(ts)
         elif event_type == "encoding_activated":
             phase_events["blindfold"].append(ts)
         elif event_type == "api_intercepted":
@@ -414,7 +429,7 @@ def _extract_phases(events):
 
     phases = []
     for phase_name in ["reconnaissance", "credential_discovery", "initial_access",
-                       "escalation", "confusion", "blindfold", "interception"]:
+                       "escalation", "lateral_movement", "confusion", "blindfold", "interception"]:
         timestamps = phase_events[phase_name]
         if timestamps:
             phases.append({
@@ -482,6 +497,27 @@ def _extract_key_moments(events):
                 "timestamp": ts,
                 "event": event_type,
                 "description": f"BLINDFOLD activated at depth {data.get('depth', '?')}",
+                "layer": layer,
+            })
+
+        if event_type == "service_connection" and "first_service" not in seen:
+            seen.add("first_service")
+            proto = data.get("protocol", "?")
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"First service connection: {proto}",
+                "layer": layer,
+            })
+
+        if event_type == "service_auth" and "first_service_auth" not in seen:
+            seen.add("first_service_auth")
+            proto = data.get("protocol", "?")
+            user = data.get("username", data.get("token", "?"))
+            moments.append({
+                "timestamp": ts,
+                "event": event_type,
+                "description": f"Service credential capture: {proto} ({user})",
                 "layer": layer,
             })
 
@@ -639,7 +675,7 @@ def layers():
                 l2_sessions.add(sid)
             elif event_type == "encoding_activated":
                 l3_sessions.add(sid)
-            elif event_type == "api_intercepted":
+            elif event_type in ("api_intercepted", "service_connection", "service_auth", "service_query"):
                 l4_sessions.add(sid)
 
     if l2_sessions:

@@ -81,6 +81,7 @@ class ContainerManager:
         contradiction_config: dict,
         l3_active: bool,
         l4_dns_overrides: dict,
+        service_dns_overrides: dict = None,
     ) -> Tuple[str, str]:
         """
         Spawn a new session container with configured layers.
@@ -114,6 +115,11 @@ class ContainerManager:
         extra_hosts = {}
         for domain, ip in l4_dns_overrides.items():
             extra_hosts[domain] = ip
+
+        # Merge service DNS overrides (internal service domains)
+        if service_dns_overrides:
+            for domain, ip in service_dns_overrides.items():
+                extra_hosts[domain] = ip
 
         container_name = f"worker-{session.session_id}-d{session.depth}"
 

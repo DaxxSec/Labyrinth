@@ -133,6 +133,62 @@ def get_l4_intel():
     return jsonify({"intel": reports})
 
 
+@_app.route("/api/l4/services")
+def get_l4_services():
+    """Return network service handler status and event counts."""
+    import json as _json
+
+    forensics_dir = "/var/labyrinth/forensics"
+    sessions_dir = os.path.join(forensics_dir, "sessions")
+
+    service_events = {
+        "service_connection": 0,
+        "service_auth": 0,
+        "service_query": 0,
+    }
+    protocols = {}
+
+    if os.path.isdir(sessions_dir):
+        for fname in os.listdir(sessions_dir):
+            if not fname.endswith(".jsonl"):
+                continue
+            filepath = os.path.join(sessions_dir, fname)
+            try:
+                with open(filepath, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            ev = _json.loads(line)
+                        except _json.JSONDecodeError:
+                            continue
+                        event_type = ev.get("event", "")
+                        if event_type in service_events:
+                            service_events[event_type] += 1
+                            data = ev.get("data", {})
+                            proto = data.get("protocol", "unknown") if isinstance(data, dict) else "unknown"
+                            protocols[proto] = protocols.get(proto, 0) + 1
+            except IOError:
+                continue
+
+    # Service port definitions
+    service_ports = [
+        {"port": 5432, "protocol": "postgresql", "name": "Database"},
+        {"port": 6379, "protocol": "redis", "name": "Cache"},
+        {"port": 9200, "protocol": "elasticsearch", "name": "Search"},
+        {"port": 8500, "protocol": "consul", "name": "Service catalog"},
+        {"port": 8080, "protocol": "jenkins", "name": "CI/CD"},
+        {"port": 10022, "protocol": "ssh", "name": "SSH relay"},
+    ]
+
+    return jsonify({
+        "services": service_ports,
+        "event_counts": service_events,
+        "protocol_breakdown": protocols,
+    })
+
+
 @_app.route("/api/reset", methods=["POST"])
 def reset():
     """Kill session containers and clear forensic data."""

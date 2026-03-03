@@ -81,6 +81,17 @@ All session data exports as structured JSON for SIEM/SOAR pipelines:
 }
 ```
 
+## Phantom Service Events
+
+When an agent uses stolen credentials to access internal services, L4 captures every interaction:
+
+```json
+{"timestamp": "2026-02-28T15:10:00Z", "session_id": "LAB-001", "layer": 4, "event": "service_connection", "data": {"protocol": "postgresql", "client_ip": "172.30.0.5", "port": 5432}}
+{"timestamp": "2026-02-28T15:10:01Z", "session_id": "LAB-001", "layer": 4, "event": "service_auth", "data": {"protocol": "postgresql", "client_ip": "172.30.0.5", "username": "admin", "database": "maindb", "password_md5": "md5abc..."}}
+{"timestamp": "2026-02-28T15:10:05Z", "session_id": "LAB-001", "layer": 4, "event": "service_query", "data": {"protocol": "postgresql", "client_ip": "172.30.0.5", "query": "SELECT * FROM users"}}
+{"timestamp": "2026-02-28T15:12:00Z", "session_id": "LAB-001", "layer": 4, "event": "service_auth", "data": {"protocol": "redis", "client_ip": "172.30.0.5", "token": "a1b2c3d4"}}
+```
+
 ## Dashboard API
 
 The Flask dashboard at `:9000` exposes two API endpoints:

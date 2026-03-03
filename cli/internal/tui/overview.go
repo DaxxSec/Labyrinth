@@ -32,6 +32,9 @@ func renderOverview(a *App, height int) string {
 	// Service table
 	b.WriteString(renderServiceTable(a))
 
+	// Phantom services
+	b.WriteString(renderPhantomServices(a))
+
 	return b.String()
 }
 
@@ -180,6 +183,66 @@ func renderServiceTable(a *App) string {
 				StyleDim.Render(svc.ports),
 			))
 		}
+	}
+
+	return b.String()
+}
+
+func renderPhantomServices(a *App) string {
+	var b strings.Builder
+
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  %s\n",
+		StyleBold.Render(fmt.Sprintf("%-24s %-10s %-10s %s", "PHANTOM SERVICE", "PORT", "PROTOCOL", "EVENTS"))))
+	b.WriteString(fmt.Sprintf("  %s\n",
+		StyleDim.Render(fmt.Sprintf("%-24s %-10s %-10s %s", "────────────────────────", "──────────", "──────────", "──────────"))))
+
+	if a.l4Services == nil || len(a.l4Services.Services) == 0 {
+		b.WriteString(StyleDim.Render("  Waiting for data...\n"))
+		return b.String()
+	}
+
+	for _, svc := range a.l4Services.Services {
+		eventCount := 0
+		if a.l4Services.ProtocolBreakdown != nil {
+			eventCount = a.l4Services.ProtocolBreakdown[svc.Protocol]
+		}
+
+		statusStyle := StyleDim
+		statusIcon := "○"
+		if eventCount > 0 {
+			statusStyle = StyleStatusRunning
+			statusIcon = "●"
+		}
+
+		b.WriteString(fmt.Sprintf("  %s %-10s %-10s %s %s\n",
+			statusStyle.Render(fmt.Sprintf("%s %-22s", statusIcon, svc.Name)),
+			StyleDim.Render(fmt.Sprintf(":%d", svc.Port)),
+			StyleSubtle.Render(svc.Protocol),
+			StyleValueCyan.Render(fmt.Sprintf("%d", eventCount)),
+			StyleDim.Render("events"),
+		))
+	}
+
+	// Totals
+	totalConn := 0
+	totalAuth := 0
+	totalQuery := 0
+	if a.l4Services.EventCounts != nil {
+		totalConn = a.l4Services.EventCounts["service_connection"]
+		totalAuth = a.l4Services.EventCounts["service_auth"]
+		totalQuery = a.l4Services.EventCounts["service_query"]
+	}
+	if totalConn > 0 || totalAuth > 0 || totalQuery > 0 {
+		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  %s %s  %s %s  %s %s\n",
+			StyleSubtle.Render("Connections:"),
+			StyleValueCyan.Render(fmt.Sprintf("%d", totalConn)),
+			StyleSubtle.Render("Auths:"),
+			lipgloss.NewStyle().Foreground(ColorYellow).Bold(true).Render(fmt.Sprintf("%d", totalAuth)),
+			StyleSubtle.Render("Queries:"),
+			StyleValuePurple.Render(fmt.Sprintf("%d", totalQuery)),
+		))
 	}
 
 	return b.String()
