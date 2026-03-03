@@ -68,6 +68,12 @@ func teardownAllEnvs(reg *registry.Registry) {
 }
 
 func teardownSingle(reg *registry.Registry, env registry.Environment) {
+	// Clean up any planted bait before containers are destroyed
+	if manifest := loadBaitManifest(); manifest != nil {
+		info("Cleaning up planted bait...")
+		cleanBait(manifest)
+	}
+
 	switch env.Mode {
 	case "docker-compose", "docker":
 		// Use stored compose file for production, fallback to findComposeFile for test

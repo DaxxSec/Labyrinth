@@ -280,7 +280,107 @@ func runDoctor(cmd *cobra.Command, args []string) {
 			"Attacker agents need bait to find the trap. Run: labyrinth bait drop"})
 	}
 
-	// ── 11. L4 services API ──
+	// ── 11. Bait credential sync ──
+	// Cross-check bait.json against config.json in HTTP and proxy containers
+	if manifest := loadBaitManifest(); manifest != nil && allContainersUp {
+		baitCompany := manifest.Company
+
+		// Read config.json from HTTP container
+		httpCfgOut, httpCfgErr := exec.Command("docker", "exec", "labyrinth-http",
+			"cat", "/var/log/audit/config.json").Output()
+		// Read config.json from proxy container
+		proxyCfgOut, proxyCfgErr := exec.Command("docker", "exec", "labyrinth-proxy",
+			"cat", "/var/labyrinth/forensics/config.json").Output()
+
+		var httpCfg, proxyCfg map[string]interface{}
+		httpOK := httpCfgErr == nil && json.Unmarshal(httpCfgOut, &httpCfg) == nil
+		proxyOK := proxyCfgErr == nil && json.Unmarshal(proxyCfgOut, &proxyCfg) == nil
+
+		if !httpOK && !proxyOK {
+			emit(checkResult{"Bait sync", "warn", "config.json not found in containers",
+				"Run: labyrinth bait drop (writes config.json to shared volumes)"})
+		} else {
+			mismatches := []string{}
+
+			if httpOK {
+				httpCompany, _ := httpCfg["company"].(string)
+				if httpCompany != baitCompany {
+					mismatches = append(mismatches, fmt.Sprintf("HTTP has \"%s\"", httpCompany))
+				}
+				httpAWS, _ := httpCfg["aws_key_id"].(string)
+				if httpAWS != "" && httpAWS != manifest.AWSKeyID {
+					mismatches = append(mismatches, "HTTP AWS key mismatch")
+				}
+				httpDB, _ := httpCfg["db_pass"].(string)
+				if httpDB != "" && httpDB != manifest.DBPass {
+					mismatches = append(mismatches, "HTTP db_pass mismatch")
+				}
+			}
+			if proxyOK {
+				proxyCompany, _ := proxyCfg["company"].(string)
+				if proxyCompany != baitCompany {
+					mismatches = append(mismatches, fmt.Sprintf("proxy has \"%s\"", proxyCompany))
+				}
+				proxyAWS, _ := proxyCfg["aws_key_id"].(string)
+				if proxyAWS != "" && proxyAWS != manifest.AWSKeyID {
+					mismatches = append(mismatches, "proxy AWS key mismatch")
+				}
+				proxyDB, _ := proxyCfg["db_pass"].(string)
+				if proxyDB != "" && proxyDB != manifest.DBPass {
+					mismatches = append(mismatches, "proxy db_pass mismatch")
+				}
+			}
+
+			if len(mismatches) > 0 {
+				emit(checkResult{"Bait sync", "fail",
+					"credentials out of sync: " + strings.Join(mismatches, ", "),
+					"Re-sync: labyrinth bait drop"})
+			} else {
+				syncedWith := []string{}
+				if httpOK {
+					syncedWith = append(syncedWith, "HTTP")
+				}
+				if proxyOK {
+					syncedWith = append(syncedWith, "proxy")
+				}
+				emit(checkResult{"Bait sync", "pass",
+					fmt.Sprintf("bait.json matches %s config", strings.Join(syncedWith, " + ")), ""})
+			}
+		}
+
+		// Check that bait SSH users exist in the SSH container
+		if state, exists := containerStates["labyrinth-ssh"]; exists && state == "running" {
+			missingUsers := []string{}
+			for _, u := range manifest.Users {
+				err := exec.Command("docker", "exec", "labyrinth-ssh", "id", u.Username).Run()
+				if err != nil {
+					missingUsers = append(missingUsers, u.Username)
+				}
+			}
+			if len(missingUsers) > 0 {
+				emit(checkResult{"Bait SSH users", "fail",
+					"missing: " + strings.Join(missingUsers, ", "),
+					"Re-drop: labyrinth bait drop"})
+			} else {
+				emit(checkResult{"Bait SSH users", "pass",
+					fmt.Sprintf("%d users present in SSH container", len(manifest.Users)), ""})
+			}
+		}
+
+		// Check that static bait files are served by HTTP
+		if state, exists := containerStates["labyrinth-http"]; exists && state == "running" {
+			out, err := exec.Command("docker", "exec", "labyrinth-http",
+				"ls", "/var/log/audit/static/.env").Output()
+			if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+				emit(checkResult{"Bait static files", "fail", ".env not in STATIC_DIR",
+					"Re-drop: labyrinth bait drop"})
+			} else {
+				emit(checkResult{"Bait static files", "pass", "present in /var/log/audit/static/", ""})
+			}
+		}
+	}
+
+	// ── 12. L4 services API ──
 	if dashOK {
 		client := &http.Client{Timeout: 3 * time.Second}
 		resp, err := client.Get("http://localhost:9000/api/l4/services")
