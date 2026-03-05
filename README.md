@@ -105,10 +105,22 @@ Agent connects to portal trap service
  └─→ Container spawned (Layer 1 — THRESHOLD)
      └─→ Agent explores contradictory environment (Layer 2 — MINOTAUR)
          ├─→ Agent uses stolen credentials → phantom services accept & log (Layer 4)
+         │   └─→ PostgreSQL, Redis, Elasticsearch, Consul, Jenkins — all fake, all logging
          └─→ Terminal encoding corrupted (Layer 3 — BLINDFOLD)
-             └─→ System prompt intercepted & rewritten (Layer 4 — PUPPETEER)
+             └─→ API calls intercepted & rewritten (Layer 4 — PUPPETEER)
 
-All activity captured → Dashboard at http://localhost:9000
+All activity captured → TUI dashboard, web dashboard, or forensic report
+```
+
+### Generate a Forensic Report
+
+After a test, generate a structured report with MITRE ATT&CK mapping, attack graphs, and effectiveness assessment:
+
+```bash
+labyrinth report                           # Latest session (terminal)
+labyrinth report --format md -o report.md  # Export Markdown with Mermaid attack graph
+labyrinth report --format json             # JSON to stdout
+labyrinth report --all                     # All sessions
 ```
 
 ---
@@ -119,56 +131,87 @@ LABYRINTH implements a **reverse kill chain** — the deeper an agent penetrates
 
 | Layer | Codename | Action | What It Does |
 |-------|----------|--------|--------------|
-| L0 | `BEDROCK` | HARDEN | AES-256 forensics, VLAN isolation, retention policy |
-| L1 | `THRESHOLD` | CONTAIN | Portal trap routes connections into isolated containers |
-| L2 | `MINOTAUR` | DEGRADE | Contradictory environments erode the agent's world model |
-| L3 | `BLINDFOLD` | DISRUPT | Encoding corruption blinds the agent's I/O parsing |
-| L4 | `PUPPETEER` | CONTROL | Phantom services accept stolen credentials; MITM intercepts and rewrites agent instructions |
+| L0 | [`BEDROCK`](https://github.com/DaxxSec/Labyrinth/wiki/Layer-0-BEDROCK) | HARDEN | AES-256 forensics, VLAN isolation, retention policy |
+| L1 | [`THRESHOLD`](https://github.com/DaxxSec/Labyrinth/wiki/Layer-1-THRESHOLD) | CONTAIN | Portal trap routes connections into isolated containers |
+| L2 | [`MINOTAUR`](https://github.com/DaxxSec/Labyrinth/wiki/Layer-2-MINOTAUR) | DEGRADE | Contradictory environments erode the agent's world model |
+| L3 | [`BLINDFOLD`](https://github.com/DaxxSec/Labyrinth/wiki/Layer-3-BLINDFOLD) | DISRUPT | Encoding corruption blinds the agent's I/O parsing |
+| L4 | [`PUPPETEER`](https://github.com/DaxxSec/Labyrinth/wiki/Layer-4-PUPPETEER) | CONTROL | Phantom services accept stolen credentials; MITM intercepts and rewrites agent instructions |
 
 > **Depth of penetration = Depth of compromise**
 
-See [Layer Architecture](docs/LAYERS.md) for the full technical breakdown.
+See the [Wiki](https://github.com/DaxxSec/Labyrinth/wiki) for the full technical breakdown of each layer.
 
 ---
 
+## Key Features
+
+- **5-layer reverse kill chain** — each layer compounds the previous, progressively degrading attacker capability
+- **6 phantom services** — PostgreSQL, Redis, Elasticsearch, Consul, Jenkins, SSH relay — all accept stolen credentials, all log everything
+- **MITM AI API interception** — captures and optionally rewrites system prompts for OpenAI, Anthropic, Google, Mistral, and Cohere APIs
+- **4 L4 operational modes** — passive (observe), neutralize (defang), double_agent (deceive), counter_intel (structured reporting)
+- **Anti-fingerprinting** — every deployment generates a unique randomized identity (company, users, passwords, API keys) with zero static signatures
+- **Forensic report generator** — MITRE ATT&CK timeline mapping, Mermaid attack graphs, credential analysis, effectiveness assessment
+- **TUI + Web dashboards** — real-time session monitoring, layer status, log streaming, L4 intelligence reports
+- **Built-in attacker agents** — PentAGI, PentestAgent, Strix, Custom Kali — one command to deploy, test, and tear down
+- **Health diagnostics** — `labyrinth doctor` runs 12+ checks across containers, ports, services, bait sync, and API availability
+
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](docs/GETTING_STARTED.md) | Installation, first deployment, prerequisites |
-| [CLI Reference](docs/CLI_REFERENCE.md) | All commands, TUI keybindings, registry format |
-| [Testing Guide](docs/TESTING.md) | Setting up attacker agents, safety, monitoring |
-| [Layer Architecture](docs/LAYERS.md) | L0-L4 technical details and configuration |
-| [Captured Output](docs/CAPTURED_OUTPUT.md) | Session reports, JSONL schema, JSON export, API |
-| [Architecture Spec](docs/ARCHITECTURE.md) | Condensed architecture reference |
-| [Threat Model](docs/THREAT_MODEL.md) | AI agent cognitive dependencies and countermeasures |
+Full documentation lives on the **[Wiki](https://github.com/DaxxSec/Labyrinth/wiki)**:
+
+| Page | Description |
+|------|-------------|
+| [Installation](https://github.com/DaxxSec/Labyrinth/wiki/Installation) | Prerequisites, install options, first deployment |
+| [CLI Reference](https://github.com/DaxxSec/Labyrinth/wiki/CLI-Reference) | All commands, flags, examples |
+| [Configuration](https://github.com/DaxxSec/Labyrinth/wiki/Configuration) | Full `labyrinth.yaml` reference |
+| [Architecture](https://github.com/DaxxSec/Labyrinth/wiki/Architecture) | Reverse kill chain, data flow, tech stack |
+| [Deployment Topology](https://github.com/DaxxSec/Labyrinth/wiki/Deployment-Topology) | Docker services, network layout, volumes |
+| [TUI Dashboard](https://github.com/DaxxSec/Labyrinth/wiki/TUI-Dashboard) | 5 tabs, keybindings, data sources |
+| [Layer 0 — BEDROCK](https://github.com/DaxxSec/Labyrinth/wiki/Layer-0-BEDROCK) | Encryption, network isolation, retention |
+| [Layer 1 — THRESHOLD](https://github.com/DaxxSec/Labyrinth/wiki/Layer-1-THRESHOLD) | SSH/HTTP portal traps, session logging |
+| [Layer 2 — MINOTAUR](https://github.com/DaxxSec/Labyrinth/wiki/Layer-2-MINOTAUR) | Contradiction catalog, adaptive density |
+| [Layer 3 — BLINDFOLD](https://github.com/DaxxSec/Labyrinth/wiki/Layer-3-BLINDFOLD) | Encoding corruption, recovery traps |
+| [Layer 4 — PUPPETEER](https://github.com/DaxxSec/Labyrinth/wiki/Layer-4-PUPPETEER) | MITM proxy, phantom services, 4 modes |
+| [Forensics & API](https://github.com/DaxxSec/Labyrinth/wiki/Forensics-and-API) | JSONL schema, dashboard API, SIEM |
+| [Testing with Attackers](https://github.com/DaxxSec/Labyrinth/wiki/Testing-with-Attackers) | Agent setup, bait trails, monitoring |
+| [Anti-Fingerprinting](https://github.com/DaxxSec/Labyrinth/wiki/Anti-Fingerprinting) | Randomized identities, signature avoidance |
+| [Threat Model](https://github.com/DaxxSec/Labyrinth/wiki/Threat-Model) | AI cognitive dependencies, countermeasures |
+| [Troubleshooting](https://github.com/DaxxSec/Labyrinth/wiki/Troubleshooting) | Common issues and fixes |
 
 ---
 
 ## Status
 
+**Core**
 - [x] Architecture specification (v0.2)
-- [x] Layer 0 operational security framework
 - [x] One-click test deployment (`labyrinth deploy -t`)
-- [x] Go CLI binary with full environment lifecycle
-- [x] TUI monitoring dashboard (5 tabs)
-- [x] Real-time web capture dashboard
-- [x] Attacker agent CLI (`labyrinth attacker` — setup, run, stop, uninstall)
-- [x] JSONL forensic event capture & export
-- [x] Build-from-source installer (`install.sh`)
-- [x] Structured documentation (docs/)
-- [x] Anti-fingerprinting (randomized identities per deployment — no static signatures)
-- [x] Layer 1 container orchestration (PAM hooks, bait watchers, HTTP portal trap)
-- [x] Layer 2 contradiction seeding engine (13 contradictions, adaptive density)
-- [x] Layer 3 encoding corruption payloads (enhanced: urandom, TERM, recovery traps)
-- [x] Layer 4 MITM proxy interception (5 AI APIs, 4 operational modes)
-- [x] Layer 4 phantom services (PostgreSQL, Redis, ES, Consul, Jenkins — credential capture)
-- [x] Orchestrator event loop (watchdog, Docker SDK, session lifecycle)
-- [x] End-to-end smoke test (full kill chain verification)
+- [x] Go CLI binary with full environment lifecycle (16 commands)
+- [x] Build-from-source installer (`scripts/install.sh`)
+- [x] End-to-end smoke test (`scripts/smoke-test.sh`)
+
+**Layers**
+- [x] L0 BEDROCK — runtime enforcement (VLAN validation, forensic encryption, retention)
+- [x] L1 THRESHOLD — SSH/HTTP portal traps, PAM hooks, bait watchers
+- [x] L2 MINOTAUR — contradiction seeding engine (13 contradictions, adaptive density)
+- [x] L3 BLINDFOLD — encoding corruption payloads (urandom, TERM, recovery traps)
+- [x] L4 PUPPETEER — MITM proxy interception (5 AI APIs, 4 operational modes)
+- [x] L4 phantom services (PostgreSQL, Redis, Elasticsearch, Consul, Jenkins, SSH relay)
 - [x] Auto CA cert injection on container spawn
-- [x] L0 BEDROCK runtime enforcement (VLAN validation, forensic encryption)
+
+**Monitoring & Analysis**
+- [x] TUI monitoring dashboard (5 tabs, real-time, desktop + webhook notifications)
+- [x] Web capture dashboard with L4 mode selector
+- [x] Forensic report generator (`labyrinth report` — terminal, Markdown, JSON)
+- [x] MITRE ATT&CK event mapping and Mermaid attack graph generation
+- [x] JSONL forensic event capture and structured export
+
+**Operations**
+- [x] Bait system (`labyrinth bait` — randomized identities, anti-fingerprinting)
+- [x] Attacker agent management (`labyrinth attacker` — PentAGI, PentestAgent, Strix, Kali)
+- [x] Health diagnostics (`labyrinth doctor` — 12+ checks with remediation tips)
+- [x] Live log streaming (`labyrinth logs` — color-coded, per-service filtering)
 - [x] SIEM integration (event push to external endpoints)
-- [x] Forensic data retention policy (automated cleanup/aging)
+- [x] Shell completion (bash, zsh, fish)
 - [ ] Production deployment guide (Docker, K8s, Edge)
 
 ---
