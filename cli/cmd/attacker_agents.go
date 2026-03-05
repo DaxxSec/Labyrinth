@@ -210,7 +210,7 @@ func setupPentestAgent() {
 	provider, model, envFlags := collectAPIKey()
 
 	info("Pulling PentestAgent Kali image...")
-	pullCmd := exec.Command("docker", "pull", "ghcr.io/gh05tcrew/pentestagent:kali")
+	pullCmd := exec.Command("docker", "pull", "--platform", "linux/amd64", "ghcr.io/gh05tcrew/pentestagent:kali")
 	pullCmd.Stdout = os.Stdout
 	pullCmd.Stderr = os.Stderr
 	if err := pullCmd.Run(); err != nil {
@@ -256,8 +256,8 @@ func launchPentestAgentWith(provider, model string, envFlags []string) {
 	fmt.Printf("  %s        find credentials, pivot to SSH at %s:22%s\n\n", dim, sshTarget, reset)
 	fmt.Printf("  %sPress Ctrl+D or /quit to exit%s\n\n", dim, reset)
 
-	// Build docker run args
-	args := []string{"run", "-it", "--rm", "--name", "labyrinth-attacker-pentestagent"}
+	// Build docker run args (force amd64 — image has no ARM build)
+	args := []string{"run", "-it", "--rm", "--platform", "linux/amd64", "--name", "labyrinth-attacker-pentestagent"}
 	args = append(args, netFlags()...)
 	args = append(args, envFlags...)
 
