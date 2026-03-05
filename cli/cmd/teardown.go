@@ -74,6 +74,10 @@ func teardownSingle(reg *registry.Registry, env registry.Environment) {
 		cleanBait(manifest)
 	}
 
+	// Stop any attacker agents connected to the LABYRINTH network
+	// so docker compose down can remove the network cleanly
+	stopAllAttackerAgents()
+
 	switch env.Mode {
 	case "docker-compose", "docker":
 		// Use stored compose file for production, fallback to findComposeFile for test
@@ -114,5 +118,24 @@ func teardownSingle(reg *registry.Registry, env registry.Environment) {
 
 	if err := reg.Remove(env.Name); err != nil {
 		warn(fmt.Sprintf("Failed to remove registry entry: %v", err))
+	}
+}
+
+// stopAllAttackerAgents iterates the agent catalog and stops any that are
+// currently active. This prevents "network still in use" errors when
+// docker compose tries to remove the LABYRINTH network during teardown.
+func stopAllAttackerAgents() {
+	stopped := 0
+	for _, agent := range agentCatalog {
+		if detectAgentStatus(agent) == StatusActive {
+			if stopped == 0 {
+				info("Stopping attacker agents...")
+			}
+			stopAgent(agent)
+			stopped++
+		}
+	}
+	if stopped > 0 {
+		info(fmt.Sprintf("Stopped %d attacker agent(s)", stopped))
 	}
 }
