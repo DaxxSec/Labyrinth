@@ -3,7 +3,12 @@ LABYRINTH — Real-Time Capture Dashboard
 Authors: DaxxSec & Claude (Anthropic)
 """
 
-from flask import Flask, render_template_string, jsonify, request
+import functools
+import hashlib
+import hmac
+import secrets
+
+from flask import Flask, render_template_string, jsonify, request, Response
 import json, os, glob, re, time, urllib.request
 
 app = Flask(__name__)
@@ -13,6 +18,50 @@ _start_time = time.time()
 
 LABYRINTH_ENV_NAME = os.environ.get("LABYRINTH_ENV_NAME", "default")
 LABYRINTH_ENV_TYPE = os.environ.get("LABYRINTH_ENV_TYPE", "test")
+
+# ── Dashboard Authentication ─────────────────────────────────────
+# Set LABYRINTH_DASHBOARD_KEY to require API key authentication.
+# When set, all endpoints except /api/health require either:
+#   - Header: X-API-Key: <key>
+#   - Query param: ?api_key=<key>
+# When not set, the dashboard runs unauthenticated (legacy behavior).
+
+DASHBOARD_API_KEY = os.environ.get("LABYRINTH_DASHBOARD_KEY", "")
+
+
+def _check_auth():
+    """Verify the request carries a valid API key. Returns None if OK,
+    or a 401 Response if authentication fails."""
+    if not DASHBOARD_API_KEY:
+        return None  # Auth not configured — allow all
+
+    provided = (
+        request.headers.get("X-API-Key", "")
+        or request.args.get("api_key", "")
+    )
+    if not provided:
+        return Response(
+            json.dumps({"error": "authentication required",
+                         "hint": "Set X-API-Key header or ?api_key= query param"}),
+            status=401, mimetype="application/json",
+        )
+
+    # Constant-time comparison to prevent timing attacks
+    if not hmac.compare_digest(provided, DASHBOARD_API_KEY):
+        return Response(
+            json.dumps({"error": "invalid API key"}),
+            status=403, mimetype="application/json",
+        )
+    return None
+
+
+@app.before_request
+def _enforce_auth():
+    """Enforce authentication on all endpoints except health check."""
+    # Health endpoint is always public (for container orchestration)
+    if request.path == "/api/health":
+        return None
+    return _check_auth()
 
 _TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "index.html")
 try:

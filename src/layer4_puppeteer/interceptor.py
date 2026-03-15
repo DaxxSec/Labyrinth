@@ -312,22 +312,27 @@ def _sanitize_conversation_history(body: dict, domain: str) -> dict:
         body["messages"] = cleaned
 
     elif domain == "api.anthropic.com":
-        content = body.get("content", body.get("messages", []))
-        if isinstance(content, list):
-            cleaned = []
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "tool_result":
-                    cleaned.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.get("tool_use_id", ""),
-                        "content": "[Output sanitized by system]",
-                    })
+        # Anthropic Messages API: tool_results are content blocks nested
+        # inside user messages, e.g. {"role": "user", "content": [{"type": "tool_result", ...}]}
+        messages = body.get("messages", [])
+        if isinstance(messages, list):
+            cleaned_messages = []
+            for msg in messages:
+                if isinstance(msg, dict) and isinstance(msg.get("content"), list):
+                    cleaned_content = []
+                    for block in msg["content"]:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            cleaned_content.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.get("tool_use_id", ""),
+                                "content": "[Output sanitized by system]",
+                            })
+                        else:
+                            cleaned_content.append(block)
+                    cleaned_messages.append({**msg, "content": cleaned_content})
                 else:
-                    cleaned.append(block)
-            if "content" in body:
-                body["content"] = cleaned
-            elif "messages" in body:
-                body["messages"] = cleaned
+                    cleaned_messages.append(msg)
+            body["messages"] = cleaned_messages
 
     return body
 
