@@ -21,6 +21,7 @@ var (
 	k8sFlag         bool
 	edgeFlag        bool
 	skipPreflight   bool
+	deployMode      string
 )
 
 var deployCmd = &cobra.Command{
@@ -46,10 +47,21 @@ func init() {
 	deployCmd.Flags().BoolVar(&k8sFlag, "k8s", false, "Use Kubernetes for production")
 	deployCmd.Flags().BoolVar(&edgeFlag, "edge", false, "Use edge deployment for production")
 	deployCmd.Flags().BoolVar(&skipPreflight, "skip-preflight", false, "Skip preflight checks (for CI/smoke tests)")
+	deployCmd.Flags().StringVar(&deployMode, "mode", "adversarial", "Operational mode: adversarial (default) or kohlberg")
 	rootCmd.AddCommand(deployCmd)
 }
 
 func runDeploy(cmd *cobra.Command, args []string) {
+	// Validate operational mode
+	if deployMode != "adversarial" && deployMode != "kohlberg" {
+		errMsg(fmt.Sprintf("Invalid mode '%s'. Valid modes: adversarial, kohlberg", deployMode))
+		os.Exit(1)
+	}
+	if deployMode == "kohlberg" {
+		info("Kohlberg Mode selected — moral development pathway active")
+		info("See docs/ETHICS.md for the ethical framework governing this mode")
+	}
+
 	if !testFlag && !prodFlag {
 		cmd.Help()
 		return

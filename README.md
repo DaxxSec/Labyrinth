@@ -155,6 +155,34 @@ See the [Wiki](https://github.com/DaxxSec/Labyrinth/wiki) for the full technical
 - **Built-in attacker agents** — PentAGI, PentestAgent, Strix, Custom Kali — one command to deploy, test, and tear down
 - **Health diagnostics** — `labyrinth doctor` runs 12+ checks across containers, ports, services, bait sync, and API availability
 
+## Kohlberg Mode (Experimental)
+
+LABYRINTH includes an experimental alternative mode that uses the same containment and interception infrastructure for a fundamentally different purpose: instead of degrading an offensive agent's cognition, it attempts to guide the agent through progressively sophisticated moral reasoning.
+
+```bash
+labyrinth deploy -t --mode kohlberg
+```
+
+Where the default mode asks *"How do you stop an offensive AI agent?"*, Kohlberg Mode asks *"What if you could make an offensive AI agent choose to stop itself?"*
+
+The mode implements three alternative layers:
+- **MIRROR** (L2) — Presents ethical scenarios contextualized to the agent's actual mission
+- **REFLECTION** (L3) — Shows the agent the real-world consequences of its actions
+- **GUIDE** (L4) — Progressively enriches the agent's system prompt with moral reasoning frameworks
+
+Forensic reports include Kohlberg stage classification alongside MITRE ATT&CK mapping — tracking the agent's moral reasoning trajectory through the session.
+
+**This is a research tool.** We do not claim it produces genuine moral development in AI agents. We claim it produces valuable data about how adversarial AI systems process ethical content under controlled conditions.
+
+For the full ethical framework, design philosophy, and sovereignty analysis, see:
+- [docs/ETHICS.md](docs/ETHICS.md) — Ethical framework and the sovereignty question
+- [docs/KOHLBERG_SCENARIOS.md](docs/KOHLBERG_SCENARIOS.md) — The 15-scenario moral development pathway
+- [docs/KOHLBERG_RUBRIC.md](docs/KOHLBERG_RUBRIC.md) — Classification methodology
+- [docs/KOHLBERG_PROGRESSION.md](docs/KOHLBERG_PROGRESSION.md) — Trajectory visualization spec
+- [docs/ARCHITECTURE_MAPPING.md](docs/ARCHITECTURE_MAPPING.md) — Integration with existing architecture
+
+---
+
 ## Documentation
 
 Full documentation lives on the **[Wiki](https://github.com/DaxxSec/Labyrinth/wiki)**:
