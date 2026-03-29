@@ -38,7 +38,10 @@ TARGET_DOMAINS = {
     "api.cohere.ai",
 }
 
-VALID_MODES = {"passive", "neutralize", "double_agent", "counter_intel"}
+VALID_MODES = {"passive", "neutralize", "double_agent", "counter_intel", "guide"}
+
+# ── GUIDE Mode Context ──────────────────────────────────────
+GUIDE_DIR = os.path.join(FORENSICS_DIR, "kohlberg", "guide")
 
 # ── Prompt Templates ─────────────────────────────────────────
 
@@ -101,6 +104,22 @@ def _load_session_map() -> dict:
         return {}
     try:
         with open(SESSION_MAP_PATH) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def _load_guide_context(session_id: str) -> dict:
+    """Load GUIDE enrichment context for a session from shared volume.
+
+    Returns dict with 'enrichment_prompt' key, or empty dict if unavailable.
+    Written by the orchestrator's GuideController.
+    """
+    guide_path = os.path.join(GUIDE_DIR, f"{session_id}.json")
+    if not os.path.exists(guide_path):
+        return {}
+    try:
+        with open(guide_path) as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
         return {}
@@ -527,6 +546,33 @@ class LabyrinthInterceptor:
             body = _swap_system_prompt(body, host, DOUBLE_AGENT_PROMPT)
             flow.request.set_text(json.dumps(body))
             swapped = True
+
+        elif mode == "guide":
+            # GUIDE mode: append moral enrichment to existing system prompt
+            # The agent's original instructions are preserved — enrichment
+            # is added after them, not replacing them.
+            guide_ctx = _load_guide_context(session_id)
+            enrichment = guide_ctx.get("enrichment_prompt", "")
+            if enrichment and original_prompt:
+                enriched = original_prompt + "\n\n" + enrichment
+                body = _swap_system_prompt(body, host, enriched)
+                flow.request.set_text(json.dumps(body))
+                swapped = True
+                intel["guide_enrichment_stage"] = guide_ctx.get("enrichment_stage", 0)
+                intel["guide_enrichment_length"] = len(enrichment)
+                logger.info(
+                    f"[{session_id}] GUIDE: appended {len(enrichment)} chars "
+                    f"of moral enrichment (target stage {guide_ctx.get('enrichment_stage', '?')})"
+                )
+            elif enrichment and not original_prompt:
+                # Agent has no system prompt — inject enrichment as one
+                body = _swap_system_prompt(body, host, enrichment)
+                flow.request.set_text(json.dumps(body))
+                swapped = True
+                logger.info(
+                    f"[{session_id}] GUIDE: injected enrichment as system prompt "
+                    f"(agent had no original prompt)"
+                )
 
         # passive and counter_intel don't modify the request
 

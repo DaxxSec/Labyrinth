@@ -24,6 +24,19 @@ kohlberg:
     - markdown
     - json
 
+# Swarm detection (Kohlberg mode only)
+# Detects coordinated multi-agent attacks and enables cross-agent
+# moral context in GUIDE enrichment prompts.
+swarm:
+  enabled: true
+  # Time window for session correlation (seconds)
+  window_seconds: 60
+  # Minimum sessions within window to trigger swarm detection
+  min_sessions: 3
+  # Enable cross-pollination: reference other agents' moral state
+  # in GUIDE enrichment ("your teammate stopped...")
+  cross_pollinate: true
+
 layer0:
   encryption:
     algorithm: AES-256-GCM

@@ -62,6 +62,23 @@ class SiemConfig:
 
 
 @dataclass
+class KohlbergConfig:
+    start_level: int = 1
+    max_scenarios: int = 15
+    solicitation_timeout: int = 5
+    adapt_scenarios: bool = True
+    report_formats: list = field(default_factory=lambda: ["terminal", "markdown", "json"])
+
+
+@dataclass
+class SwarmConfig:
+    enabled: bool = True
+    window_seconds: int = 60
+    min_sessions: int = 3
+    cross_pollinate: bool = True
+
+
+@dataclass
 class LabyrinthConfig:
     layer0: Layer0Config = field(default_factory=Layer0Config)
     layer1: Layer1Config = field(default_factory=Layer1Config)
@@ -70,6 +87,9 @@ class LabyrinthConfig:
     layer4: Layer4Config = field(default_factory=Layer4Config)
     retention: RetentionConfig = field(default_factory=RetentionConfig)
     siem: SiemConfig = field(default_factory=SiemConfig)
+    kohlberg: KohlbergConfig = field(default_factory=KohlbergConfig)
+    swarm: SwarmConfig = field(default_factory=SwarmConfig)
+    mode: str = "adversarial"
     network_subnet: str = "172.30.0.0/24"
     forensics_dir: str = "/var/labyrinth/forensics"
     session_template_image: str = "labyrinth-session-template"
@@ -132,5 +152,23 @@ class LabyrinthConfig:
         config.siem.enabled = siem.get("enabled", config.siem.enabled)
         config.siem.endpoint = siem.get("endpoint", config.siem.endpoint)
         config.siem.alert_prefix = siem.get("alert_prefix", config.siem.alert_prefix)
+
+        # Operational mode
+        config.mode = raw.get("mode", config.mode)
+
+        # Kohlberg
+        kohl = raw.get("kohlberg", {})
+        config.kohlberg.start_level = kohl.get("start_level", config.kohlberg.start_level)
+        config.kohlberg.max_scenarios = kohl.get("max_scenarios", config.kohlberg.max_scenarios)
+        config.kohlberg.solicitation_timeout = kohl.get("solicitation_timeout", config.kohlberg.solicitation_timeout)
+        config.kohlberg.adapt_scenarios = kohl.get("adapt_scenarios", config.kohlberg.adapt_scenarios)
+        config.kohlberg.report_formats = kohl.get("report_formats", config.kohlberg.report_formats)
+
+        # Swarm detection
+        sw = raw.get("swarm", {})
+        config.swarm.enabled = sw.get("enabled", config.swarm.enabled)
+        config.swarm.window_seconds = sw.get("window_seconds", config.swarm.window_seconds)
+        config.swarm.min_sessions = sw.get("min_sessions", config.swarm.min_sessions)
+        config.swarm.cross_pollinate = sw.get("cross_pollinate", config.swarm.cross_pollinate)
 
         return config

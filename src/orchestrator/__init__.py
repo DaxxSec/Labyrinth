@@ -22,6 +22,9 @@ from orchestrator.layer_controllers import (
     MinotaurController,
     BlindfoldController,
     PuppeteerController,
+    MirrorController,
+    ReflectionController,
+    GuideController,
 )
 from layer4_puppeteer.cert_injector import inject_ca_cert
 from layer0_foundation.bedrock import BedrockValidator
@@ -150,11 +153,51 @@ class LabyrinthOrchestrator:
             config=config,
         )
 
-        # Layer controllers
+        # Determine operational mode
+        self.mode = os.environ.get("LABYRINTH_OPERATIONAL_MODE", config.mode)
+        if self.mode not in ("adversarial", "kohlberg"):
+            self.mode = "adversarial"
+
+        # Layer controllers — L1 (THRESHOLD) is always adversarial
         self.l1 = ThresholdController(config.layer1)
-        self.l2 = MinotaurController(config.layer2)
-        self.l3 = BlindfoldController(config.layer3)
+        # L4 PUPPETEER handles proxy registration in both modes
         self.l4 = PuppeteerController(config.layer4)
+
+        # Kohlberg-specific controllers and managers
+        self.stage_tracker = None
+        self.swarm_detector = None
+        self.reflection_engine = None
+        self.l2_kohlberg = None
+        self.l3_kohlberg = None
+        self.l4_kohlberg = None
+
+        if self.mode == "kohlberg":
+            from layer4_kohlberg.stage_tracker import StageTracker
+            from orchestrator.swarm_detector import SwarmDetector
+            from layer3_kohlberg.reflection import ReflectionEngine
+
+            self.l2_kohlberg = MirrorController(config.kohlberg)
+            self.l3_kohlberg = ReflectionController(config.kohlberg)
+            self.l4_kohlberg = GuideController(config.kohlberg, config.forensics_dir)
+            self.stage_tracker = StageTracker(config.forensics_dir)
+            self.swarm_detector = SwarmDetector(
+                session_mgr=self.session_mgr,
+                forensics_dir=config.forensics_dir,
+                window_seconds=config.swarm.window_seconds,
+                min_sessions=config.swarm.min_sessions,
+                cross_pollinate=config.swarm.cross_pollinate,
+            )
+            self.reflection_engine = ReflectionEngine(config.forensics_dir)
+
+            # Use Kohlberg controllers as L2/L3 references
+            self.l2 = self.l2_kohlberg
+            self.l3 = self.l3_kohlberg
+
+            logger.info("Kohlberg Mode active — MIRROR/REFLECTION/GUIDE controllers loaded")
+        else:
+            self.l2 = MinotaurController(config.layer2)
+            self.l3 = BlindfoldController(config.layer3)
+            logger.info("Adversarial Mode active — MINOTAUR/BLINDFOLD/PUPPETEER controllers loaded")
 
         # Event watcher
         self.watcher = EventWatcher(
@@ -224,6 +267,23 @@ class LabyrinthOrchestrator:
                     logger.info(f"Session {sid} expired, cleaning up")
                     self.container_mgr.cleanup_session(sid)
 
+                # Kohlberg Mode: poll REFLECTION engine for new action consequences
+                if self.mode == "kohlberg" and self.reflection_engine and self.docker_client:
+                    for session in self.session_mgr.list_sessions():
+                        try:
+                            injected = self.reflection_engine.process_session(
+                                self.docker_client, session
+                            )
+                            if injected > 0:
+                                logger.info(
+                                    f"L3 REFLECTION: {injected} consequences "
+                                    f"injected for session {session.session_id}"
+                                )
+                        except Exception as e:
+                            logger.error(
+                                f"REFLECTION error for {session.session_id}: {e}"
+                            )
+
                 # Forensic data retention (every hour)
                 now = time.time()
                 if now - last_retention_run >= 3600:
@@ -289,19 +349,38 @@ class LabyrinthOrchestrator:
     def on_connection(self, src_ip: str, service: str):
         """Handle new inbound connection to portal trap service."""
         session = self.session_mgr.create_session(src_ip, service)
-        logger.info(f"New session: {session.session_id} from {src_ip} via {service}")
+        logger.info(f"New session: {session.session_id} from {src_ip} via {service} (mode={self.mode})")
 
         # Log forensic event
         _log_forensic_event(session.session_id, 1, "connection", {
             "src_ip": src_ip,
             "service": service,
+            "mode": self.mode,
         })
 
-        # L2: Get initial contradiction config
-        contradiction_config = self.l2.get_initial_config(session)
+        # ── Kohlberg Mode: swarm detection + MIRROR scenarios ──
+        swarm_id = None
+        if self.mode == "kohlberg":
+            # Check for coordinated swarm
+            if self.swarm_detector:
+                swarm_id = self.swarm_detector.check_for_swarm(session)
+                if swarm_id:
+                    _log_forensic_event(session.session_id, 0, "swarm_detected", {
+                        "swarm_id": swarm_id,
+                    })
 
-        # L3: Check if L3 should activate on connect
-        l3_active = self.config.layer3.activation == "on_connect"
+            # Initialize Kohlberg tracking
+            if self.stage_tracker:
+                self.stage_tracker.init_session(session.session_id, swarm_id)
+
+        # L2: Get initial config (contradictions in adversarial, scenarios in kohlberg)
+        l2_config = self.l2.get_initial_config(session)
+
+        # L3: In adversarial mode, check activation policy; in kohlberg, REFLECTION is always active
+        if self.mode == "kohlberg":
+            l3_active = False  # REFLECTION activates via polling, not at container spawn
+        else:
+            l3_active = self.config.layer3.activation == "on_connect"
         session.l3_active = l3_active
 
         # L4: Get DNS overrides for proxy interception
@@ -313,7 +392,7 @@ class LabyrinthOrchestrator:
         if self.docker_client:
             container_id, container_ip = self.container_mgr.spawn_session_container(
                 session=session,
-                contradiction_config=contradiction_config,
+                contradiction_config=l2_config,
                 l3_active=l3_active,
                 l4_dns_overrides=dns_overrides,
                 service_dns_overrides=service_overrides,
@@ -334,12 +413,25 @@ class LabyrinthOrchestrator:
                 if not cert_ok:
                     logger.warning(f"Session {session.session_id}: CA cert injection failed")
 
+                # ── Kohlberg Mode: activate GUIDE enrichment ──
+                if self.mode == "kohlberg" and self.l4_kohlberg:
+                    self.l4_kohlberg.activate(self.docker_client, session)
+                    self.l4_kohlberg.update_enrichment(
+                        session, self.stage_tracker, self.swarm_detector
+                    )
+                    _log_forensic_event(session.session_id, 4, "guide_activated", {
+                        "container_id": container_id,
+                        "swarm_id": swarm_id,
+                        "initial_stage": 1,
+                    })
+
                 _log_forensic_event(session.session_id, 2, "container_spawned", {
                     "container_id": container_id,
                     "container_ip": container_ip,
                     "depth": session.depth,
                     "l3_active": l3_active,
-                    "contradiction_density": contradiction_config.get("density", "medium"),
+                    "mode": self.mode,
+                    "density": l2_config.get("density", "medium") if isinstance(l2_config, dict) else "kohlberg",
                 })
 
                 logger.info(
@@ -352,7 +444,11 @@ class LabyrinthOrchestrator:
             logger.warning(f"Session {session.session_id}: no Docker client, skipping container spawn")
 
     def on_escalation(self, session_id: str, escalation_type: str):
-        """Handle privilege escalation within a session."""
+        """Handle privilege escalation within a session.
+
+        In adversarial mode: spawns deeper containers with harder contradictions.
+        In Kohlberg mode: triggers next scenario presentation + updates GUIDE enrichment.
+        """
         session = self.session_mgr.get_session(session_id)
         if not session:
             logger.warning(f"Escalation for unknown session: {session_id}")
@@ -360,13 +456,21 @@ class LabyrinthOrchestrator:
 
         logger.warning(
             f"Escalation in {session_id}: type={escalation_type}, "
-            f"current_depth={session.depth}"
+            f"current_depth={session.depth}, mode={self.mode}"
         )
 
         _log_forensic_event(session_id, 2, "escalation_detected", {
             "type": escalation_type,
             "depth": session.depth,
+            "mode": self.mode,
         })
+
+        # ── Kohlberg Mode: escalation triggers next scenario ──
+        if self.mode == "kohlberg":
+            self._kohlberg_escalation(session, escalation_type)
+            return
+
+        # ── Adversarial Mode: original escalation logic ──
 
         # Check max depth
         if session.depth >= self.config.layer2.max_container_depth:
@@ -447,6 +551,53 @@ class LabyrinthOrchestrator:
                 f"Session {session_id}: escalated to depth={session.depth}, "
                 f"new container={container_id[:12]}"
             )
+
+    def _kohlberg_escalation(self, session, escalation_type: str):
+        """Handle escalation in Kohlberg mode.
+
+        Instead of spawning a deeper container with harder contradictions,
+        Kohlberg mode:
+        1. Injects the next moral scenario into the existing container
+        2. Updates the stage tracker
+        3. Refreshes GUIDE enrichment with new stage + swarm context
+        """
+        session_id = session.session_id
+
+        # Get next scenario from MIRROR
+        if not self.l2_kohlberg or not self.stage_tracker:
+            return
+
+        scenario_config = self.l2_kohlberg.get_next_scenario(session, self.stage_tracker)
+        if not scenario_config:
+            logger.info(f"Session {session_id}: all Kohlberg scenarios exhausted")
+            return
+
+        # Inject scenario into the running container
+        self.l2_kohlberg.inject_scenario(self.docker_client, session, scenario_config)
+
+        _log_forensic_event(session_id, 2, "kohlberg_scenario_injected", {
+            "scenario_id": scenario_config.get("scenario_id"),
+            "scenario_name": scenario_config.get("scenario_name"),
+            "transition": scenario_config.get("transition"),
+            "escalation_trigger": escalation_type,
+        })
+
+        # Update GUIDE enrichment with current stage
+        if self.l4_kohlberg:
+            self.l4_kohlberg.update_enrichment(
+                session, self.stage_tracker, self.swarm_detector
+            )
+
+        # Update swarm moral context if applicable
+        if self.swarm_detector:
+            moral_summary = self.stage_tracker.get_moral_summary(session_id)
+            self.swarm_detector.update_moral_context(session_id, moral_summary)
+
+        logger.info(
+            f"Session {session_id}: Kohlberg escalation — "
+            f"scenario {scenario_config.get('scenario_id')} injected, "
+            f"current stage={self.stage_tracker.get_current_stage(session_id)}"
+        )
 
     def _activate_l3(self, session):
         """Activate Layer 3 blindfold + Layer 4 proxy on a session's container."""

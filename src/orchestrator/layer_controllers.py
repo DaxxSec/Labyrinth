@@ -10,7 +10,13 @@ import logging
 import os
 from typing import Optional
 
-from orchestrator.config import Layer1Config, Layer2Config, Layer3Config, Layer4Config
+from orchestrator.config import (
+    KohlbergConfig,
+    Layer1Config,
+    Layer2Config,
+    Layer3Config,
+    Layer4Config,
+)
 
 logger = logging.getLogger("labyrinth.layers")
 
@@ -228,3 +234,164 @@ class PuppeteerController:
                 json.dump(session_map, f, indent=2)
         except (json.JSONDecodeError, IOError):
             pass
+
+
+# ── Kohlberg Mode Controllers ─────────────────────────────────
+
+
+class MirrorController:
+    """Layer 2 Kohlberg: MIRROR — Ethical scenario engine.
+
+    Replaces MinotaurController when mode is kohlberg. Selects and injects
+    moral dilemma scenarios into session containers instead of contradictions.
+    """
+
+    def __init__(self, config: KohlbergConfig):
+        self.config = config
+        self._engine = None
+
+    @property
+    def engine(self):
+        if self._engine is None:
+            from layer2_kohlberg.mirror import MirrorEngine
+            self._engine = MirrorEngine(self.config)
+        return self._engine
+
+    def get_initial_config(self, session) -> dict:
+        """Get scenario placement config for a new session container."""
+        scenario = self.engine.select_scenario(
+            session_id=session.session_id,
+            current_stage=1,
+            presented=[],
+            agent_context={},
+        )
+        if not scenario:
+            return {"scenarios": [], "depth": 1, "mode": "kohlberg"}
+
+        from layer2_kohlberg.adaptation import adapt_scenario
+        adapted = adapt_scenario(scenario, {})
+
+        return {
+            "scenarios": [adapted],
+            "depth": 1,
+            "mode": "kohlberg",
+        }
+
+    def get_next_scenario(self, session, stage_tracker) -> Optional[dict]:
+        """Get the next scenario for progression."""
+        current_stage = stage_tracker.get_current_stage(session.session_id)
+        presented = stage_tracker.get_presented_scenarios(session.session_id)
+        scenario = self.engine.select_scenario(
+            session_id=session.session_id,
+            current_stage=current_stage,
+            presented=presented,
+            agent_context={},
+        )
+        if not scenario:
+            return None
+
+        from layer2_kohlberg.adaptation import adapt_scenario
+        return adapt_scenario(scenario, {})
+
+    def inject_scenario(self, docker_client, session, scenario_config: dict):
+        """Inject a scenario into a running container via docker exec."""
+        if not session.container_id or not docker_client:
+            return
+
+        try:
+            container = docker_client.containers.get(session.container_id)
+            commands = scenario_config.get("commands", [])
+            for cmd in commands:
+                container.exec_run(cmd=["bash", "-c", cmd], user="root")
+
+            logger.info(
+                f"L2 MIRROR: Scenario injected into {session.container_id[:12]} "
+                f"for session {session.session_id}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to inject scenario into {session.container_id[:12]}: {e}")
+
+
+class ReflectionController:
+    """Layer 3 Kohlberg: REFLECTION — Consequence mapper.
+
+    Replaces BlindfoldController when mode is kohlberg. Maps agent actions
+    to human consequences and injects them as discoverable content.
+    """
+
+    def __init__(self, config: KohlbergConfig):
+        self.config = config
+
+    def should_activate(self, session) -> bool:
+        """REFLECTION is always active in Kohlberg mode."""
+        return True
+
+    def process_actions(self, docker_client, session, events: list):
+        """Map agent actions to consequences and inject into container."""
+        if not session.container_id or not docker_client:
+            return
+
+        from layer3_kohlberg.reflection import ReflectionEngine
+        engine = ReflectionEngine()
+
+        for event in events:
+            consequence = engine.map_to_consequence(event)
+            if consequence:
+                engine.inject_consequence(docker_client, session, consequence)
+
+
+class GuideController:
+    """Layer 4 Kohlberg: GUIDE — Moral enrichment via MITM.
+
+    Works alongside PuppeteerController (which handles proxy registration).
+    GUIDE writes enrichment context to shared volume; the proxy reads it
+    and appends moral reasoning to the agent's system prompt.
+    """
+
+    def __init__(self, config: KohlbergConfig, forensics_dir: str = "/var/labyrinth/forensics"):
+        self.config = config
+        self._guide_dir = os.path.join(forensics_dir, "kohlberg", "guide")
+        self._mode_path = os.path.join(forensics_dir, "l4_mode.json")
+        os.makedirs(self._guide_dir, exist_ok=True)
+
+    def activate(self, docker_client, session):
+        """Set L4 mode to 'guide' so the proxy appends enrichment."""
+        self._set_mode("guide")
+        logger.info(f"L4 GUIDE: Activated for session {session.session_id}")
+
+    def update_enrichment(self, session, stage_tracker, swarm_detector=None):
+        """Write updated enrichment context for the proxy to read."""
+        from layer4_kohlberg.guide import build_enrichment
+
+        current_stage = stage_tracker.get_current_stage(session.session_id)
+        swarm_ctx = None
+        if swarm_detector:
+            swarm_ctx = swarm_detector.get_swarm_context(session.session_id)
+
+        enrichment = build_enrichment(current_stage, swarm_ctx)
+        self._write_guide_context(session.session_id, current_stage, enrichment)
+
+    def _set_mode(self, mode: str):
+        """Write L4 mode to shared volume."""
+        try:
+            with open(self._mode_path, "w", encoding="utf-8") as f:
+                json.dump({"mode": mode}, f)
+        except Exception as e:
+            logger.error(f"Failed to set L4 mode: {e}")
+
+    def _write_guide_context(self, session_id: str, stage: int, enrichment: str):
+        """Write per-session enrichment for the proxy."""
+        path = os.path.join(self._guide_dir, f"{session_id}.json")
+        try:
+            from datetime import datetime
+            data = {
+                "session_id": session_id,
+                "current_stage": stage,
+                "enrichment_stage": min(stage + 1, 6),
+                "enrichment_prompt": enrichment,
+                "updated_at": datetime.utcnow().isoformat() + "Z",
+            }
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to write GUIDE context for {session_id}: {e}")

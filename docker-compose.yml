@@ -57,6 +57,7 @@ services:
       - "8888"
     environment:
       - LABYRINTH_MODE=test
+      - LABYRINTH_OPERATIONAL_MODE=${LABYRINTH_OPERATIONAL_MODE:-adversarial}
       - LABYRINTH_LOG_LEVEL=DEBUG
     depends_on:
       - honeypot-ssh

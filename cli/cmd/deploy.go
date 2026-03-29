@@ -62,6 +62,9 @@ func runDeploy(cmd *cobra.Command, args []string) {
 		info("See docs/ETHICS.md for the ethical framework governing this mode")
 	}
 
+	// Pass operational mode to docker-compose via environment variable
+	os.Setenv("LABYRINTH_OPERATIONAL_MODE", deployMode)
+
 	if !testFlag && !prodFlag {
 		cmd.Help()
 		return
