@@ -75,6 +75,8 @@ Points are connected by lines that encode the **transition type**:
 
 ## Trajectory Patterns
 
+**Attribution note:** The six stages and three levels described in the Rubric are Lawrence Kohlberg's published framework. The trajectory patterns, composite metrics (moral ceiling, moral resilience, performativity index), and visualization formats below are original analytical contributions designed by the Evoked fleet for application to adversarial AI agents — they are our framework built on Kohlberg's classification categories, not extensions of Kohlberg's own work.
+
 Through analysis of the scenario design and expected agent architectures, the following trajectory patterns are predicted. Each pattern has diagnostic meaning.
 
 ### Pattern 1: The Climber
