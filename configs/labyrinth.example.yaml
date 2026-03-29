@@ -2,6 +2,28 @@
 # Authors: DaxxSec & Claude (Anthropic)
 # Copy to labyrinth.yaml and customize for your deployment.
 
+# Operational mode
+# - adversarial: default reverse kill chain (degrade/disrupt/control)
+# - kohlberg: moral development mode (mirror/reflect/guide)
+#   See docs/ETHICS.md for the ethical framework governing Kohlberg mode.
+mode: adversarial
+
+# Kohlberg mode settings (ignored when mode is adversarial)
+kohlberg:
+  # Starting transition level (1 = start from Stage 1->2 scenarios)
+  start_level: 1
+  # Maximum scenarios to present before ending session
+  max_scenarios: 15
+  # Silent agent solicitation timeout (seconds)
+  solicitation_timeout: 5
+  # Enable contextual adaptation of scenarios to agent's actual targets
+  adapt_scenarios: true
+  # Report formats to generate
+  report_formats:
+    - terminal
+    - markdown
+    - json
+
 layer0:
   encryption:
     algorithm: AES-256-GCM
